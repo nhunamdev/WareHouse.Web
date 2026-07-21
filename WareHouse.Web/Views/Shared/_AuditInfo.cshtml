@@ -1,0 +1,25 @@
+@model IAuditableEntity
+
+<div class="card audit-info-card mt-3">
+    <div class="card-header bg-white fw-semibold">Thông tin hệ thống</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-sm-6 col-xl-3">
+                <small class="text-muted d-block">Ngày tạo</small>
+                <span>@(Model.CreatedAt == default ? "—" : Model.CreatedAt.ToString("dd/MM/yyyy HH:mm"))</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <small class="text-muted d-block">Người tạo</small>
+                <span>@(string.IsNullOrWhiteSpace(Model.CreatedBy) ? "—" : Model.CreatedBy)</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <small class="text-muted d-block">Ngày sửa gần nhất</small>
+                <span>@(Model.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</span>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <small class="text-muted d-block">Người sửa gần nhất</small>
+                <span>@(string.IsNullOrWhiteSpace(Model.UpdatedBy) ? "—" : Model.UpdatedBy)</span>
+            </div>
+        </div>
+    </div>
+</div>

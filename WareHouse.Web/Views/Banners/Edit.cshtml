@@ -1,0 +1,94 @@
+@model WareHouse.Web.ViewModels.BannerEditViewModel
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "Thêm banner" : "Sửa banner";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">Banner đầu tiên theo thứ tự đang hiển thị sẽ được dùng ở vùng spotlight trang chủ.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="bannerForm" class="btn btn-primary">Lưu banner</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+</div>
+
+<form asp-action="Edit" method="post" enctype="multipart/form-data" id="bannerForm">
+    <input asp-for="Id" type="hidden" />
+    <div class="card banner-edit-card">
+        <div class="card-body">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="alert alert-danger"></div>
+            }
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <label asp-for="Title" class="form-label">Tiêu đề banner</label>
+                    <input asp-for="Title" class="form-control" placeholder="Ví dụ: Xe đạp chất lượng cho mọi hành trình" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+
+                    <label asp-for="Image" class="form-label mt-3">Hình ảnh</label>
+                    <input asp-for="Image" class="form-control" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <div class="form-text"><strong>Ảnh sẽ tự cắt giữa về 1600 × 900 px (tỷ lệ 16:9)</strong>. JPG/PNG/WebP, tối đa 5 MB. Nên đặt chủ thể ở giữa ảnh để giữ bố cục đẹp.</div>
+                    <span asp-validation-for="Image" class="text-danger"></span>
+
+                    <label asp-for="Url" class="form-label mt-3">URL khi nhấn (không bắt buộc)</label>
+                    <input asp-for="Url" class="form-control" placeholder="https://... hoặc /xe-dap" />
+                    <div class="form-text">Để trống thì ảnh không có liên kết. Có URL sẽ mở ở tab mới.</div>
+                    <span asp-validation-for="Url" class="text-danger"></span>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-sm-6">
+                            <label asp-for="SortOrder" class="form-label">Thứ tự</label>
+                            <input asp-for="SortOrder" class="form-control" type="number" min="0" />
+                        </div>
+                        <div class="col-sm-6 d-flex align-items-end">
+                            <div class="form-check mb-2">
+                                <input asp-for="IsActive" class="form-check-input" />
+                                <label asp-for="IsActive" class="form-check-label">Đang hiển thị trên website</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="banner-preview-label">Xem trước</div>
+                    @if (!string.IsNullOrWhiteSpace(Model.ExistingImageUrl))
+                    {
+                        <img src="@Model.ExistingImageUrl" alt="@Model.Title" class="banner-edit-preview" id="bannerPreview" />
+                    }
+                    else
+                    {
+                        <div class="banner-edit-preview banner-edit-preview-empty" id="bannerPreview">Chưa có ảnh</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const input = document.querySelector('input[type="file"][name="Image"]');
+            const preview = document.getElementById('bannerPreview');
+            if (!input || !preview) return;
+            input.addEventListener('change', () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const url = URL.createObjectURL(file);
+                if (preview.tagName === 'IMG') preview.src = url;
+                else {
+                    const image = document.createElement('img');
+                    image.id = 'bannerPreview';
+                    image.className = 'banner-edit-preview';
+                    image.alt = 'Xem trước banner';
+                    image.src = url;
+                    preview.replaceWith(image);
+                }
+            });
+        })();
+    </script>
+}

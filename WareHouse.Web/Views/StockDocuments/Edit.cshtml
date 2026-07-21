@@ -1,0 +1,46 @@
+@model DocumentEditViewModel
+@{
+    var title = Model.DocumentType switch
+    {
+        StockDocumentType.Import => "Phiếu nhập kho",
+        StockDocumentType.Export => "Phiếu xuất kho",
+        StockDocumentType.Transfer => "Phiếu chuyển kho",
+        StockDocumentType.Return => "Phiếu trả hàng",
+        _ => "Phiếu điều chỉnh"
+    };
+    var description = Model.DocumentType switch
+    {
+        StockDocumentType.Export => "Giảm tồn kho cho cấp phát, sử dụng nội bộ, hàng mẫu, quà tặng hoặc nghiệp vụ không phải bán hàng.",
+        StockDocumentType.Transfer => "Chuyển hàng giữa hai kho, không làm thay đổi tổng tồn toàn hệ thống.",
+        StockDocumentType.Import => "Ghi nhận hàng nhập và tăng tồn tại kho nhận.",
+        StockDocumentType.Return => "Nhận lại hàng trả và tăng tồn tại kho nhận.",
+        _ => "Ghi nhận chênh lệch thực tế và cập nhật lại tồn kho."
+    };
+    ViewData["Title"] = Model.Id == 0 ? "Tạo " + title : "Sửa " + title;
+    ViewData["DocumentActionsAtTop"] = true;
+    var submitLabel = Model.DocumentType switch
+    {
+        StockDocumentType.Import => "Lưu và nhập kho",
+        StockDocumentType.Export => "Lưu và xuất kho",
+        StockDocumentType.Transfer => "Lưu và chuyển kho",
+        _ => "Lưu phiếu"
+    };
+}
+
+<div class="document-entry-toolbar">
+    <div class="document-entry-heading">
+        <span>@title</span>
+        <strong>@ViewData["Title"]</strong>
+        <small>@description</small>
+    </div>
+    <div class="document-entry-actions">
+        <button type="submit" form="documentForm" class="btn btn-primary">@submitLabel</button>
+        <a asp-action="Index" asp-route-type="@Model.DocumentType" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+</div>
+
+<partial name="_DocumentForm" model="Model" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

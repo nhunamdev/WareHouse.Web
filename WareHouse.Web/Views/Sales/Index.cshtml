@@ -1,0 +1,213 @@
+@model PagedResult<StockDocument>
+@{
+    ViewData["Title"] = "Bán hàng";
+    var hasFilters = ViewBag.FromDate is not null || ViewBag.ToDate is not null ||
+                     !string.IsNullOrWhiteSpace((string?)ViewBag.Keyword);
+    var totalSalesAmount = Convert.ToDecimal(ViewBag.TotalSalesAmount ?? 0m);
+    var totalDebtAmount = Convert.ToDecimal(ViewBag.TotalDebtAmount ?? 0m);
+    var pendingCount = Convert.ToInt32(ViewBag.PendingCount ?? 0);
+    var completedCount = Math.Max(0, Model.TotalItems - pendingCount);
+}
+
+<form method="get" class="filter-bar row g-2 inventory-filter">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-lg-2 col-md-4">
+        <label class="visually-hidden" for="saleFromDate">Từ ngày</label>
+        <input id="saleFromDate" type="date" name="fromDate"
+               value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))"
+               class="form-control" title="Từ ngày" />
+    </div>
+    <div class="col-lg-2 col-md-4">
+        <label class="visually-hidden" for="saleToDate">Đến ngày</label>
+        <input id="saleToDate" type="date" name="toDate"
+               value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))"
+               class="form-control" title="Đến ngày" />
+    </div>
+    <div class="col-lg-5 col-md-4">
+        <label class="visually-hidden" for="saleKeyword">Tìm kiếm</label>
+        <input id="saleKeyword" name="keyword" value="@ViewBag.Keyword" class="form-control"
+               placeholder="Tìm sản phẩm, khách hàng, kho hoặc người bán..." />
+    </div>
+    <div class="col-lg-3 inventory-filter-actions">
+        <button class="btn btn-outline-primary">Lọc dữ liệu</button>
+        @if (hasFilters)
+        {
+            <a asp-action="Index" class="btn btn-light">Đặt lại</a>
+        }
+    </div>
+</form>
+
+<div class="card sales-history-card">
+    <div class="management-list-toolbar">
+        <a asp-action="Edit" class="btn btn-primary sales-heading-create">+ Tạo đơn bán hàng</a>
+        <div class="sales-list-totals">
+            <span><strong>@completedCount</strong> lượt mua</span>
+            @if (pendingCount > 0)
+            {
+                <span class="sales-pending-total">Chờ xử lý: <strong>@pendingCount</strong></span>
+            }
+            <span>Tiền: <strong>@totalSalesAmount.ToString("N0") đ</strong></span>
+            <span>Nợ: <strong class="text-danger">@totalDebtAmount.ToString("N0") đ</strong></span>
+        </div>
+    </div>
+
+    <div class="table-responsive sales-customer-orders-scroll">
+        <table class="table mb-0 sales-customer-orders-table">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Khách hàng / Sản phẩm", Column = "customer", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Kho bán", Column = "warehouse", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Ngày / Người bán", Column = "date", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tổng tiền", Column = "total", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Thanh toán", Column = "payment", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-muted py-5">Chưa có dữ liệu bán hàng phù hợp.</td></tr>
+            }
+
+            @foreach (var sale in Model.Items)
+            {
+                var detailId = $"sale-products-{sale.Id}";
+                var lines = sale.Details.OrderBy(x => x.Item.Product.Name).ThenBy(x => x.ItemId).ToList();
+                var customerName = sale.Customer?.Name ?? "Khách lẻ";
+                var customerPhone = string.IsNullOrWhiteSpace(sale.CustomerPhone)
+                    ? sale.Customer?.Phone
+                    : sale.CustomerPhone;
+                var sellerName = string.IsNullOrWhiteSpace(sale.CreatedBy) ? "Hệ thống" : sale.CreatedBy;
+
+                <tr class="sales-customer-order-row @(sale.Status != DocumentStatus.Completed ? "is-pending" : "")" data-sale-summary="@sale.Id">
+                    <td class="sales-customer-order-info">
+                        <button type="button"
+                                class="sales-customer-order-toggle"
+                                data-sale-toggle
+                                aria-expanded="false"
+                                aria-controls="@detailId">
+                            <span class="sales-toggle-symbol" aria-hidden="true"></span>
+                            <span class="sales-customer-copy">
+                                <strong>@customerName</strong>
+                                @if (!string.IsNullOrWhiteSpace(customerPhone))
+                                {
+                                    <small>@customerPhone</small>
+                                }
+                                else
+                                {
+                                    <small>Khách mua trực tiếp</small>
+                                }
+                            </span>
+                        </button>
+
+                        <div id="@detailId" class="sales-purchased-products" hidden>
+                            @if (lines.Count == 0)
+                            {
+                                <div class="sales-purchased-products-empty">Chưa có thông tin sản phẩm.</div>
+                            }
+                            @foreach (var line in lines)
+                            {
+                                var attributes = WareHouseServices.FormatAttributes(line.Item.ItemAttributes);
+                                <div class="sales-purchased-product-line">
+                                    <span class="sales-purchased-product-name">
+                                        <strong>@line.Item.Product.Name</strong>
+                                        @if (!string.IsNullOrWhiteSpace(attributes))
+                                        {
+                                            <small>@attributes</small>
+                                        }
+                                    </span>
+                                    <span class="sales-purchased-product-calculation">
+                                        @line.Quantity.ToString("N0") × @line.Price.ToString("N0")
+                                    </span>
+                                    <strong class="sales-purchased-product-amount">@line.Amount.ToString("N0") đ</strong>
+                                </div>
+                            }
+                        </div>
+                    </td>
+
+                    <td class="sales-customer-order-warehouse">@(sale.FromWarehouse?.Name ?? "—")</td>
+
+                    <td class="sales-customer-order-date">
+                        <strong>@sale.DocumentDate.ToString("dd/MM/yyyy HH:mm")</strong>
+                        <small>@sellerName</small>
+                        <small class="sales-order-mobile-source">@(sale.FromWarehouse?.Name ?? "—")</small>
+                    </td>
+
+                    <td class="money sales-customer-order-total">@sale.TotalAmount.ToString("N0") <span class="currency-suffix">đ</span></td>
+
+                    <td>
+                        @if (sale.Status == DocumentStatus.Draft)
+                        {
+                            <div class="sales-payment-status is-pending">
+                                <strong>Chờ xuất hóa đơn</strong>
+                                <small>Chưa ghi nhận doanh thu</small>
+                            </div>
+                        }
+                        else if (sale.Status == DocumentStatus.Invoiced)
+                        {
+                            <div class="sales-payment-status is-invoiced">
+                                <strong>Đã xuất hóa đơn</strong>
+                                <small>Chờ nhập thanh toán</small>
+                            </div>
+                        }
+                        else if (sale.DebtAmount > 0)
+                        {
+                            <div class="sales-payment-status is-debt">
+                                <strong>Còn nợ @sale.DebtAmount.ToString("N0") đ</strong>
+                                <small>Đã thu @sale.PaidAmount.ToString("N0") đ</small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="sales-payment-status is-paid">
+                                <strong>Đã thanh toán</strong>
+                                <small>Đã thu đủ</small>
+                            </div>
+                        }
+                    </td>
+
+                    <td class="text-end">
+                        <a asp-action="Details" asp-route-id="@sale.Id" class="btn btn-sm btn-outline-primary">@(sale.Status == DocumentStatus.Completed ? "Xem" : "Xử lý")</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card-footer bg-white">
+        <partial name="_Pagination"
+                 model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"), ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"), ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            "use strict";
+
+            document.querySelectorAll("[data-sale-toggle]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const products = document.getElementById(button.getAttribute("aria-controls"));
+                    if (!products) return;
+
+                    const isExpanded = button.getAttribute("aria-expanded") === "true";
+                    if (!isExpanded) {
+                        document.querySelectorAll('[data-sale-toggle][aria-expanded="true"]').forEach((openButton) => {
+                            if (openButton === button) return;
+                            const openProducts = document.getElementById(openButton.getAttribute("aria-controls"));
+                            openButton.setAttribute("aria-expanded", "false");
+                            if (openProducts) openProducts.hidden = true;
+                            openButton.closest("[data-sale-summary]")?.classList.remove("is-expanded");
+                        });
+                    }
+
+                    button.setAttribute("aria-expanded", String(!isExpanded));
+                    products.hidden = isExpanded;
+                    button.closest("[data-sale-summary]")?.classList.toggle("is-expanded", !isExpanded);
+                });
+            });
+        })();
+    </script>
+}

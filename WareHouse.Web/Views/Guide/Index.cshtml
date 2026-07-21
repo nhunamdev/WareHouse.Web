@@ -1,0 +1,419 @@
+@{
+    ViewData["Title"] = "Hướng dẫn sử dụng";
+    var canManage = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager);
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+}
+
+<div class="guide-page">
+    <section class="guide-hero">
+        <div class="guide-hero-copy">
+            <span class="guide-eyebrow">Hướng dẫn vận hành</span>
+            <h1>Từ tạo sản phẩm đến bán hàng và đối soát</h1>
+            <p>
+                Làm theo đúng thứ tự dưới đây để số lượng tồn, doanh thu và công nợ luôn khớp.
+                Hệ thống tự lưu ngày giờ và người thực hiện cho mỗi thao tác.
+            </p>
+            <div class="guide-hero-actions">
+                <a href="#bat-dau" class="btn btn-primary">Bắt đầu thiết lập</a>
+                <a href="#chon-nghiep-vu" class="btn btn-outline-primary">Chọn đúng nghiệp vụ</a>
+            </div>
+        </div>
+        <div class="guide-hero-summary" aria-label="Quy trình sử dụng chính">
+            <div><span>01</span><strong>Tạo kho và danh mục</strong></div>
+            <div><span>02</span><strong>Tạo sản phẩm, mặt hàng</strong></div>
+            <div><span>03</span><strong>Nhập kho và bán hàng</strong></div>
+            <div><span>04</span><strong>Đối soát cuối ngày</strong></div>
+        </div>
+    </section>
+
+    <div class="guide-layout">
+        <aside class="guide-toc" aria-label="Mục lục hướng dẫn">
+            <strong>Mục lục</strong>
+            <nav>
+                <a href="#bat-dau">Thiết lập ban đầu</a>
+                <a href="#san-pham">Sản phẩm & mặt hàng</a>
+                <a href="#chon-nghiep-vu">Chọn nghiệp vụ</a>
+                <a href="#nhap-kho">Nhập kho</a>
+                <a href="#ban-hang">Bán hàng</a>
+                <a href="#cong-no">Thu công nợ</a>
+                <a href="#xuat-chuyen">Xuất & chuyển kho</a>
+                <a href="#kiem-tra">Tồn kho & báo cáo</a>
+                <a href="#vai-tro">Tài khoản & phân quyền</a>
+                <a href="#quy-tac">Quy tắc vận hành</a>
+            </nav>
+        </aside>
+
+        <main class="guide-content">
+            <section class="guide-section" id="bat-dau">
+                <div class="guide-section-heading">
+                    <span>01</span>
+                    <div>
+                        <h2>Thiết lập ban đầu</h2>
+                        <p>Chỉ cần thực hiện một lần trước khi nhập và bán hàng.</p>
+                    </div>
+                </div>
+                <ol class="guide-steps">
+                    <li>
+                        <span>1</span>
+                        <div>
+                            <h3>Tạo kho hàng</h3>
+                            <p>Mỗi cửa hàng hoặc địa điểm giữ hàng nên là một kho riêng.</p>
+                            @if (canManage)
+                            {
+                                <a asp-controller="Warehouses" asp-action="Index">Mở quản lý kho hàng</a>
+                            }
+                        </div>
+                    </li>
+                    <li>
+                        <span>2</span>
+                        <div>
+                            <h3>Kiểm tra thuộc tính</h3>
+                            <p>Tạo các lựa chọn như Màu, Size nếu sản phẩm có nhiều phân loại. Có thể bỏ qua với hàng không cần phân loại.</p>
+                            @if (canManage)
+                            {
+                                <a asp-controller="Attributes" asp-action="Index">Mở quản lý thuộc tính</a>
+                            }
+                        </div>
+                    </li>
+                    <li>
+                        <span>3</span>
+                        <div>
+                            <h3>Tạo sản phẩm và các mặt hàng</h3>
+                            <p>Nhập thông tin chung, sau đó thêm nhiều dòng Màu – Size – Giá vốn – Giá bán trong cùng màn hình.</p>
+                            @if (canManage)
+                            {
+                                <a asp-controller="Products" asp-action="Index">Mở quản lý sản phẩm</a>
+                            }
+                        </div>
+                    </li>
+                    <li>
+                        <span>4</span>
+                        <div>
+                            <h3>Tạo khách hàng khi cần theo dõi nợ</h3>
+                            <p>Khách lẻ có thể bán ngay; khách quen hoặc đại lý nên được tạo riêng để xem lịch sử mua và công nợ.</p>
+                            <a asp-controller="Customers" asp-action="Index">Mở quản lý khách hàng</a>
+                        </div>
+                    </li>
+                </ol>
+            </section>
+
+            <section class="guide-section" id="san-pham">
+                <div class="guide-section-heading">
+                    <span>02</span>
+                    <div>
+                        <h2>Sản phẩm và mặt hàng khác nhau thế nào?</h2>
+                        <p>Hai khái niệm được quản lý chung trong một màn hình.</p>
+                    </div>
+                </div>
+                <div class="guide-feature-grid">
+                    <article>
+                        <span class="guide-feature-icon">SP</span>
+                        <h3>Sản phẩm</h3>
+                        <p>Là tên hàng chung, ví dụ “Xe đạp X”. Nhóm hàng, đơn vị tính và mô tả được dùng chung.</p>
+                    </article>
+                    <article>
+                        <span class="guide-feature-icon">MH</span>
+                        <h3>Mặt hàng</h3>
+                        <p>Là từng phiên bản đang bán, ví dụ “Xe đạp X – Đỏ – Size 16”. Mỗi mặt hàng có giá và tồn riêng.</p>
+                    </article>
+                    <article>
+                        <span class="guide-feature-icon">+</span>
+                        <h3>Thêm nhanh nhiều dòng</h3>
+                            <p>Dùng nút “Thêm dòng” để khai báo tất cả tổ hợp ngay trong sản phẩm. Không cần mở màn hình quản lý riêng.</p>
+                    </article>
+                    <article>
+                        <span class="guide-feature-icon">SỬA</span>
+                        <h3>Sửa cùng một nơi</h3>
+                        <p>Mở Sửa sản phẩm để tải toàn bộ mặt hàng hiện có, thêm dòng mới hoặc cập nhật giá.</p>
+                    </article>
+                </div>
+                <div class="guide-note">
+                    <strong>Cách đọc số liệu:</strong>
+                            “10 sản phẩm, 35 mặt hàng” nghĩa là hệ thống có 10 tên sản phẩm và 35 phân loại đang bán.
+                    Các mã kỹ thuật được hệ thống tự quản lý và không cần nhập.
+                </div>
+                <div class="guide-note">
+                    <strong>Thư viện ảnh:</strong>
+                    Mở Sửa sản phẩm, chọn tab Hình ảnh rồi tải nhiều ảnh cùng lúc. Có thể kéo thả để đổi thứ tự,
+                    chọn một ảnh đại diện và xóa ảnh có xác nhận. Ảnh được lưu trong thư mục <code>data/images/{mã-sản-phẩm}</code>.
+                </div>
+            </section>
+
+            <section class="guide-section" id="chon-nghiep-vu">
+                <div class="guide-section-heading">
+                    <span>03</span>
+                    <div>
+                        <h2>Chọn đúng nghiệp vụ</h2>
+                        <p>Đây là bước quan trọng nhất để tồn kho và tiền không bị sai.</p>
+                    </div>
+                </div>
+                <div class="table-responsive guide-decision-table">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tình huống</th>
+                                <th>Chức năng</th>
+                                <th>Kết quả</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Nhận hàng mới hoặc bổ sung hàng</td>
+                                <td><strong>Nhập kho</strong></td>
+                                <td>Tăng tồn tại kho nhận.</td>
+                            </tr>
+                            <tr>
+                                <td>Giao hàng cho khách, có thu tiền hoặc ghi nợ</td>
+                                <td><strong>Bán hàng</strong></td>
+                                <td>Giảm tồn, ghi doanh thu, tiền đã thu và công nợ.</td>
+                            </tr>
+                            <tr>
+                                <td>Cấp phát nội bộ, hàng mẫu, quà tặng hoặc hao hụt</td>
+                                <td><strong>Xuất kho</strong></td>
+                                <td>Giảm tồn nhưng không ghi doanh thu.</td>
+                            </tr>
+                            <tr>
+                                <td>Điều chuyển hàng từ kho này sang kho khác</td>
+                                <td><strong>Chuyển kho</strong></td>
+                                <td>Kho nguồn giảm, kho đích tăng; tổng tồn không đổi.</td>
+                            </tr>
+                            <tr>
+                                <td>Khách thanh toán thêm cho đơn còn nợ</td>
+                                <td><strong>Thu công nợ</strong></td>
+                                <td>Giảm nợ, không thay đổi tồn kho.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="guide-section guide-workflow" id="nhap-kho">
+                <div class="guide-section-heading">
+                    <span>04</span>
+                    <div>
+                        <h2>Nhập hàng vào kho</h2>
+                        <p>Ngày nhập và người nhập được hệ thống tự lưu.</p>
+                    </div>
+                </div>
+                <div class="guide-workflow-grid">
+                    <ol>
+                        <li>Vào <strong>Quản lý kho → Nhập kho</strong>, chọn <strong>Tạo phiếu nhập kho</strong>.</li>
+                        <li>Chọn kho nhận hàng.</li>
+                        <li>Chọn từng sản phẩm/mặt hàng, nhập số lượng nguyên và đơn giá nhập.</li>
+                        <li>Dùng <strong>Thêm dòng</strong> nếu một lần nhập có nhiều mặt hàng.</li>
+                        <li>Kiểm tra tổng tiền, thêm ghi chú ở cuối rồi lưu.</li>
+                    </ol>
+                    <div class="guide-result">
+                        <strong>Sau khi lưu</strong>
+                        <span>Tồn của từng mặt hàng tại kho đích tăng ngay.</span>
+                        <span>Danh sách nhập kho cho biết mặt hàng, ngày nhập, người nhập và số lượng.</span>
+                    </div>
+                </div>
+                @if (canManage)
+                {
+                    <a asp-controller="StockDocuments" asp-action="Edit" asp-route-type="Import" class="guide-open-link">Tạo phiếu nhập kho →</a>
+                }
+            </section>
+
+            <section class="guide-section guide-workflow" id="ban-hang">
+                <div class="guide-section-heading">
+                    <span>05</span>
+                    <div>
+                        <h2>Tạo đơn bán hàng</h2>
+                        <p>Tạo đơn chờ xử lý, sau đó quản trị viên hoặc quản lý kiểm tra và hoàn tất.</p>
+                    </div>
+                </div>
+                <div class="guide-workflow-grid">
+                    <ol>
+                        <li>Vào <strong>Kinh doanh → Bán hàng</strong>, chọn <strong>Tạo đơn bán hàng</strong>.</li>
+                        <li>Chọn kho bán và khách hàng. Số điện thoại có sẵn sẽ tự điền; có thể sửa hoặc để trống.</li>
+                        <li>Nhập số lượng nguyên và kiểm tra đơn giá của từng dòng. Có thể bán vượt tồn nếu hàng chưa kịp nhập về.</li>
+                        <li>Lưu đơn rồi chọn <strong>Xuất hóa đơn</strong>. Hệ thống mở bản in nhưng đơn vẫn ở trạng thái chờ hoàn thành.</li>
+                        <li>Khi giao dịch xong, nhập số tiền khách đã thanh toán. Hệ thống mặc định điền đủ tổng đơn nhưng vẫn cho sửa, sau đó chọn <strong>Hoàn thành đơn</strong>.</li>
+                    </ol>
+                    <div class="guide-result">
+                        <strong>Sau khi hoàn tất</strong>
+                        <span>Tồn kho mới giảm theo số lượng bán.</span>
+                        <span>Nếu bán vượt tồn, phần thiếu được ghi âm tại đúng kho và tự bù khi nhập hàng về.</span>
+                        <span>Đơn mới được tính vào doanh thu và thanh toán.</span>
+                        <span>Phần còn thiếu mới trở thành công nợ của khách.</span>
+                    </div>
+                </div>
+                <a asp-controller="Sales" asp-action="Edit" class="guide-open-link">Tạo đơn bán hàng →</a>
+            </section>
+
+            <section class="guide-section guide-workflow" id="cong-no">
+                <div class="guide-section-heading">
+                    <span>06</span>
+                    <div>
+                        <h2>Thu công nợ</h2>
+                        <p>Dùng khi khách trả thêm tiền sau lần mua hàng.</p>
+                    </div>
+                </div>
+                <div class="guide-workflow-grid">
+                    <ol>
+                        <li>Vào <strong>Kinh doanh → Thu công nợ</strong> để xem các khách hàng đang nợ.</li>
+                        <li>Mở từng khách để xem các đơn còn nợ, sau đó chọn <strong>Lập phiếu thu</strong> hoặc <strong>Thu đơn này</strong>.</li>
+                        <li>Nhập số tiền, phương thức thanh toán và lưu phiếu chờ xử lý.</li>
+                        <li>Xuất phiếu thu, kiểm tra lại và chọn <strong>Hoàn thành phiếu</strong> sau khi thực sự nhận tiền.</li>
+                    </ol>
+                    <div class="guide-result">
+                        <strong>Lưu ý</strong>
+                        <span>Lập hoặc xuất phiếu chưa làm giảm công nợ; chỉ phiếu hoàn thành mới được ghi nhận.</span>
+                        <span>Admin/Manager có thể xem, sửa hoặc xóa phiếu tạo sai; thao tác xóa luôn yêu cầu xác nhận.</span>
+                    </div>
+                </div>
+                <a asp-controller="Payments" asp-action="Index" class="guide-open-link">Mở danh sách thu công nợ →</a>
+            </section>
+
+            <section class="guide-section guide-workflow" id="xuat-chuyen">
+                <div class="guide-section-heading">
+                    <span>07</span>
+                    <div>
+                        <h2>Xuất kho và chuyển kho</h2>
+                        <p>Hai nghiệp vụ không phát sinh doanh thu bán hàng.</p>
+                    </div>
+                </div>
+                <div class="guide-workflow-grid">
+                    <ol>
+                        <li><strong>Xuất kho:</strong> chọn kho nguồn, mặt hàng, số lượng và ghi rõ lý do xuất.</li>
+                        <li><strong>Chuyển kho:</strong> chọn kho nguồn và kho đích khác nhau.</li>
+                        <li>Danh sách mặt hàng luôn chạy theo tồn thực tế của kho nguồn.</li>
+                        <li>Số lượng phải là số nguyên và không được vượt tồn.</li>
+                        <li>Kiểm tra ghi chú ở cuối màn hình trước khi lưu.</li>
+                    </ol>
+                    <div class="guide-result">
+                        <strong>Phân biệt nhanh</strong>
+                        <span>Xuất kho: hàng rời hệ thống, tổng tồn giảm.</span>
+                        <span>Chuyển kho: hàng đổi vị trí, tổng tồn toàn hệ thống không đổi.</span>
+                    </div>
+                </div>
+                @if (canManage)
+                {
+                    <div class="guide-link-row">
+                        <a asp-controller="StockDocuments" asp-action="Edit" asp-route-type="Export">Tạo phiếu xuất kho</a>
+                        <a asp-controller="StockDocuments" asp-action="Edit" asp-route-type="Transfer">Tạo phiếu chuyển kho</a>
+                    </div>
+                }
+            </section>
+
+            <section class="guide-section" id="kiem-tra">
+                <div class="guide-section-heading">
+                    <span>08</span>
+                    <div>
+                        <h2>Kiểm tra tồn kho và báo cáo</h2>
+                        <p>Dùng các màn hình tổng quan để đối soát thay vì cộng tay từ danh sách.</p>
+                    </div>
+                </div>
+                <div class="guide-report-grid">
+                    <article>
+                        <h3>Tồn kho</h3>
+                        <p>Xem tổng số lượng, giá trị vốn và mở từng sản phẩm để kiểm tra mặt hàng tại từng kho.</p>
+                    </article>
+                    <article>
+                        <h3>Hàng đang thiếu</h3>
+                        <p>Xem các mặt hàng đã bán vượt tồn, số lượng cần nhập bù và tạo nhanh phiếu nhập đúng kho.</p>
+                    </article>
+                    <article>
+                        <h3>Nhập – xuất – tồn</h3>
+                        <p>Đối chiếu tồn đầu, lượng nhập, lượng xuất và tồn cuối trong khoảng ngày.</p>
+                    </article>
+                    <article>
+                        <h3>Bán hàng</h3>
+                        <p>Xem doanh thu, tiền đã thu, công nợ phát sinh và các sản phẩm bán chạy.</p>
+                    </article>
+                    <article>
+                        <h3>Công nợ</h3>
+                        <p>Biết khách nào còn nợ, số tiền phải thu và lịch sử thanh toán.</p>
+                    </article>
+                </div>
+                @if (canManage)
+                {
+                    <div class="guide-link-row">
+                        <a asp-controller="Inventory" asp-action="Index">Xem tồn kho</a>
+                        <a asp-controller="Backorders" asp-action="Index">Hàng đang thiếu</a>
+                        <a asp-controller="Reports" asp-action="StockMovement">Nhập – xuất – tồn</a>
+                        <a asp-controller="Reports" asp-action="Sales">Báo cáo bán hàng</a>
+                        <a asp-controller="Reports" asp-action="Debt">Báo cáo công nợ</a>
+                    </div>
+                }
+            </section>
+
+            <section class="guide-section" id="vai-tro">
+                <div class="guide-section-heading">
+                    <span>09</span>
+                    <div>
+                        <h2>Tài khoản và phân quyền</h2>
+                        <p>Chỉ cấp đúng quyền cần dùng cho từng người.</p>
+                    </div>
+                </div>
+                <div class="guide-role-grid">
+                    <article class="guide-role-admin">
+                        <span>Admin</span>
+                        <h3>Quản trị hệ thống</h3>
+                        <ul>
+                            <li>Toàn quyền dữ liệu và cấu hình.</li>
+                            <li>Quản lý tài khoản, mật khẩu và vai trò.</li>
+                            <li>Xem nhật ký hoạt động của người dùng.</li>
+                        </ul>
+                    </article>
+                    <article class="guide-role-manager">
+                        <span>Manager</span>
+                        <h3>Quản lý vận hành</h3>
+                        <ul>
+                            <li>Quản lý sản phẩm, kho và khách hàng.</li>
+                            <li>Kiểm tra, xuất hóa đơn và hoàn tất đơn bán hàng.</li>
+                            <li>Xem tồn kho và các báo cáo vận hành.</li>
+                        </ul>
+                    </article>
+                    <article class="guide-role-sale">
+                        <span>Sale</span>
+                        <h3>Nhân viên bán hàng</h3>
+                        <ul>
+                            <li>Tạo khách hàng và đơn bán hàng.</li>
+                            <li>Theo dõi đơn chờ xử lý và in lại đơn đã hoàn tất.</li>
+                            <li>Ghi nhận các khoản thu công nợ.</li>
+                        </ul>
+                    </article>
+                </div>
+                @if (isAdmin)
+                {
+                    <div class="guide-inline-action">
+                        <div>
+                            <strong>Quản lý người sử dụng</strong>
+                            <span>Tạo tài khoản riêng cho từng người để lịch sử thao tác được ghi đúng.</span>
+                        </div>
+                        <a asp-controller="UserAdmin" asp-action="Index" class="btn btn-sm btn-outline-primary">Mở quản lý tài khoản</a>
+                    </div>
+                }
+            </section>
+
+            <section class="guide-section" id="quy-tac">
+                <div class="guide-section-heading">
+                    <span>10</span>
+                    <div>
+                        <h2>Quy tắc vận hành quan trọng</h2>
+                        <p>Giữ dữ liệu chính xác và dễ kiểm tra về sau.</p>
+                    </div>
+                </div>
+                <div class="guide-rules">
+                    <div><strong>Giao hàng cho khách phải dùng Bán hàng.</strong><span>Không dùng Xuất kho thay thế vì sẽ thiếu doanh thu và công nợ.</span></div>
+                    <div><strong>Chọn kho trước khi chọn mặt hàng.</strong><span>Danh sách và số lượng có thể xuất phụ thuộc vào kho đã chọn.</span></div>
+                    <div><strong>Số lượng luôn là số nguyên.</strong><span>Không nhập số lẻ và không xuất vượt số đang tồn.</span></div>
+                    <div><strong>Kiểm tra đúng phân loại.</strong><span>Xác nhận Màu, Size và giá trước khi nhập kho hoặc bán.</span></div>
+                    <div><strong>Không dùng chung tài khoản.</strong><span>Mỗi người dùng tài khoản riêng để lưu chính xác người tạo và người sửa.</span></div>
+                    <div><strong>Xóa phải được xác nhận.</strong><span>Đọc kỹ nội dung cảnh báo; dữ liệu đã phát sinh giao dịch có thể không được phép xóa.</span></div>
+                    <div><strong>Đối soát cuối ngày.</strong><span>Kiểm tra tồn kho, doanh thu, tiền đã thu và công nợ trước khi kết thúc ngày.</span></div>
+                </div>
+            </section>
+
+            <section class="guide-finish">
+                <div>
+                    <span>Quy trình khuyến nghị mỗi ngày</span>
+                    <h2>Nhập đúng nghiệp vụ → kiểm tra kết quả → đối soát cuối ngày</h2>
+                </div>
+                <a href="#bat-dau" class="btn btn-light">Về đầu hướng dẫn</a>
+            </section>
+        </main>
+    </div>
+</div>

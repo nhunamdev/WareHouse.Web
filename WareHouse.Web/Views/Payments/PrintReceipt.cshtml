@@ -1,0 +1,82 @@
+@model Payment
+@{
+    Layout = null;
+    var methodName = Model.PaymentMethod switch
+    {
+        PaymentMethod.Cash => "Tiền mặt",
+        PaymentMethod.BankTransfer => "Chuyển khoản",
+        _ => "Khác"
+    };
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Phiếu thu công nợ</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body { font-family: Arial, sans-serif; color: #172033; }
+        .sheet { max-width: 760px; margin: 20px auto; padding: 30px; }
+        .receipt-amount { border: 1px solid #d9deea; border-radius: 12px; padding: 18px; background: #f7f9fc; }
+        @@media print {
+            .d-print-none { display: none !important; }
+            .sheet { margin: 0; max-width: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+<main class="sheet">
+    <div class="d-flex justify-content-between d-print-none mb-3">
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light">Chi tiết phiếu thu</a>
+        <button class="btn btn-primary" onclick="window.print()">In phiếu thu</button>
+    </div>
+    <header class="text-center mb-4">
+        <h1 class="h3 mb-1">PHIẾEU THU CÔNG NỢ</h1>
+        <strong>WAREHOUSE</strong>
+    </header>
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6"><small class="text-muted d-block">Khách hàng</small><strong>@Model.Customer.Name</strong></div>
+        <div class="col-sm-6"><small class="text-muted d-block">Số điện thoại</small><strong>@(Model.Customer.Phone ?? "—")</strong></div>
+        <div class="col-sm-6"><small class="text-muted d-block">Ngày thu</small><strong>@Model.PaymentDate.ToString("dd/MM/yyyy HH:mm")</strong></div>
+        <div class="col-sm-6"><small class="text-muted d-block">Phương thức</small><strong>@methodName</strong></div>
+        <div class="col-12">
+            <small class="text-muted d-block">Nội dung</small>
+            <strong>@(Model.Allocations.Count > 0 ? $"Thu công nợ cho {Model.Allocations.Count} đơn bán" : Model.Document is null ? "Thu công nợ khách hàng" : $"Thu công nợ đơn bán ngày {Model.Document.DocumentDate:dd/MM/yyyy}")</strong>
+        </div>
+    </div>
+    @if (Model.Allocations.Count > 0)
+    {
+        <table class="table table-sm table-bordered mb-3">
+            <thead><tr><th>Đơn bán</th><th class="text-end">Số tiền thu</th></tr></thead>
+            <tbody>
+            @foreach (var allocation in Model.Allocations.OrderByDescending(x => x.Document.DocumentDate).ThenByDescending(x => x.DocumentId))
+            {
+                <tr><td>Đơn ngày @allocation.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td><td class="text-end">@allocation.Amount.ToString("N0") đ</td></tr>
+            }
+            </tbody>
+        </table>
+    }
+    <div class="receipt-amount d-flex align-items-center justify-content-between mb-3">
+        <span>Số tiền thu</span>
+        <strong class="fs-3">@Model.Amount.ToString("N0") đ</strong>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Model.Remark))
+    {
+        <p><strong>Ghi chú:</strong> @Model.Remark</p>
+    }
+    @if (Model.Status != PaymentStatus.Completed)
+    {
+        <p class="text-center text-danger fw-bold">PHIẾEU CHỜ HOÀN THÀNH</p>
+    }
+    <div class="row text-center mt-5">
+        <div class="col-6"><strong>Người nộp tiền</strong><div class="text-muted">(Ký, ghi rõ họ tên)</div></div>
+        <div class="col-6"><strong>Người lập phiếu</strong><div class="text-muted">@(Model.CreatedBy ?? "Hệ thống")</div></div>
+    </div>
+</main>
+@if ((bool?)ViewBag.AutoPrint == true)
+{
+    <script>window.addEventListener('load', () => window.print());</script>
+}
+</body>
+</html>

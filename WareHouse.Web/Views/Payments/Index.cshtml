@@ -1,0 +1,116 @@
+@model PagedResult<DebtCustomerRow>
+@{
+    ViewData["Title"] = "Thu công nợ";
+    var totalDebt = (decimal)ViewBag.TotalDebt;
+}
+
+<form method="get" class="filter-bar debt-customer-filter">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <input type="search" name="keyword" value="@ViewBag.Keyword" class="form-control"
+           placeholder="Tìm tên, mã hoặc số điện thoại khách hàng..." />
+    <button class="btn btn-outline-primary">Tìm kiếm</button>
+</form>
+
+<section class="card debt-customer-card">
+    <div class="management-list-toolbar debt-customer-toolbar">
+        <a asp-action="History" class="btn btn-outline-primary">Lịch sử phiếu thu</a>
+        <div class="management-list-summary">
+            <span><strong>@Model.TotalItems</strong> khách đang nợ</span>
+            <span>Tổng nợ <strong class="text-danger">@totalDebt.ToString("N0") đ</strong></span>
+        </div>
+    </div>
+
+    <div class="debt-customer-table-wrap">
+        <table class="table mb-0 debt-customer-table">
+            <thead>
+            <tr>
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Khách hàng", Column = "customer", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đơn còn nợ", Column = "orders", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Nợ từ", Column = "oldest", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tổng công nợ", Column = "debt", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                <th class="debt-customer-action-heading">Thao tác</th>
+            </tr>
+            </thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center text-muted py-5">Không có khách hàng nào đang nợ.</td></tr>
+            }
+            @foreach (var customer in Model.Items)
+            {
+                var detailId = $"debtCustomer{customer.CustomerId}";
+                <tr class="debt-customer-row">
+                    <td>
+                        <button type="button" class="debt-customer-toggle" aria-expanded="false" aria-controls="@detailId">
+                            <span class="debt-toggle-icon">+</span>
+                            <span class="debt-customer-identity">
+                                <strong>@customer.CustomerName</strong>
+                                @if (!string.IsNullOrWhiteSpace(customer.Phone))
+                                {
+                                    <small>@customer.Phone</small>
+                                }
+                            </span>
+                        </button>
+                    </td>
+                    <td><strong>@customer.OutstandingSaleCount.ToString("N0")</strong> đơn</td>
+                    <td class="text-nowrap">@(customer.OldestDebtDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                    <td class="money debt-customer-amount">@customer.CurrentDebt.ToString("N0") đ</td>
+                    <td class="text-end">
+                        <a asp-action="Create" asp-route-customerId="@customer.CustomerId" class="btn btn-sm btn-primary">Lập phiếu thu</a>
+                    </td>
+                </tr>
+                <tr id="@detailId" class="debt-customer-detail" hidden>
+                    <td colspan="5">
+                        <div class="debt-order-panel">
+                            <div class="debt-order-panel-heading">
+                                <strong>Các đơn còn nợ</strong>
+                                <span>@customer.OutstandingSaleCount đơn · @customer.CurrentDebt.ToString("N0") đ</span>
+                            </div>
+                            <div class="debt-order-list">
+                            @foreach (var sale in customer.OutstandingSales)
+                            {
+                                var productNames = sale.Details.Select(x => x.Item.Product.Name)
+                                    .Distinct().Take(2).ToList();
+                                var remainingProductCount = sale.Details.Select(x => x.Item.ProductId).Distinct().Count() - productNames.Count;
+                                var productSummary = productNames.Count == 0 ? "Đơn bán hàng" : string.Join(", ", productNames);
+                                if (remainingProductCount > 0) productSummary += $" và {remainingProductCount} sản phẩm khác";
+                                <article class="debt-order-row">
+                                    <div class="debt-order-main">
+                                        <a asp-controller="Sales" asp-action="Details" asp-route-id="@sale.Id">Đơn ngày @sale.DocumentDate.ToString("dd/MM/yyyy HH:mm")</a>
+                                        <small>@productSummary</small>
+                                    </div>
+                                    <div><small>Tổng tiền</small><strong>@sale.TotalAmount.ToString("N0") đ</strong></div>
+                                    <div><small>Đã thu</small><strong class="text-success">@sale.PaidAmount.ToString("N0") đ</strong></div>
+                                    <div><small>Còn nợ</small><strong class="text-danger">@sale.DebtAmount.ToString("N0") đ</strong></div>
+                                    <a asp-action="Create" asp-route-customerId="@customer.CustomerId" asp-route-documentId="@sale.Id"
+                                       class="btn btn-sm btn-outline-primary">Thu đơn này</a>
+                                </article>
+                            }
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination" model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["keyword"] = ViewBag.Keyword?.ToString(), ["sort"] = ViewBag.Sort?.ToString(), ["direction"] = ViewBag.Direction?.ToString() } }' />
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.debt-customer-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const detail = document.getElementById(button.getAttribute('aria-controls'));
+                if (!detail) return;
+                const expanded = button.getAttribute('aria-expanded') === 'true';
+                button.setAttribute('aria-expanded', String(!expanded));
+                button.querySelector('.debt-toggle-icon').textContent = expanded ? '+' : '−';
+                detail.hidden = expanded;
+            });
+        });
+    </script>
+}

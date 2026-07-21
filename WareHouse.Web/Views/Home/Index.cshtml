@@ -1,0 +1,149 @@
+@model DashboardData
+@{
+    ViewData["Title"] = "Dashboard";
+    var selectedFromDate = (DateTime?)ViewBag.FromDate;
+    var selectedToDate = (DateTime?)ViewBag.ToDate;
+    var periodFrom = selectedFromDate?.Date ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    var periodTo = selectedToDate?.Date ?? DateTime.Today;
+    var hasCustomPeriod = selectedFromDate.HasValue || selectedToDate.HasValue;
+    var outboundQuantity = Model.ExportQuantity;
+    var netMovement = Model.ImportQuantity - outboundQuantity;
+    var maxRevenue = Model.TopSelling.Count == 0 ? 0 : Model.TopSelling.Max(x => x.Revenue);
+
+    string DocumentTypeLabel(StockDocumentType type) => type switch
+    {
+        StockDocumentType.Import => "Nhập kho",
+        StockDocumentType.Export => "Xuất kho",
+        StockDocumentType.Transfer => "Chuyển kho",
+        StockDocumentType.Sale => "Bán hàng",
+        _ => "Hoạt động kho"
+    };
+
+    string DocumentTypeClass(StockDocumentType type) => type switch
+    {
+        StockDocumentType.Import => "is-in",
+        StockDocumentType.Export or StockDocumentType.Sale => "is-out",
+        StockDocumentType.Transfer => "is-transfer",
+        _ => ""
+    };
+}
+
+<div class="analytics-page">
+    <header class="analytics-heading">
+        <div>
+            <span class="analytics-kicker">Tổng quan vận hành</span>
+            <h1>Kho và kinh doanh</h1>
+            <p>@periodFrom.ToString("dd/MM/yyyy") – @periodTo.ToString("dd/MM/yyyy")</p>
+        </div>
+        <div class="analytics-heading-actions">
+            <a asp-controller="StockDocuments" asp-action="Edit" asp-route-type="Import" class="btn btn-outline-primary">Nhập kho</a>
+            <a asp-controller="Sales" asp-action="Edit" class="btn btn-primary">+ Tạo đơn bán</a>
+        </div>
+    </header>
+
+    <form method="get" class="analytics-filter analytics-filter-compact">
+        <div class="analytics-filter-title">
+            <span>Thời gian xem</span>
+            <strong>@periodFrom.ToString("dd/MM/yyyy") – @periodTo.ToString("dd/MM/yyyy")</strong>
+        </div>
+        <label><span>Từ ngày</span><input type="date" name="fromDate" value="@selectedFromDate?.ToString("yyyy-MM-dd")" class="form-control" /></label>
+        <label><span>Đến ngày</span><input type="date" name="toDate" value="@selectedToDate?.ToString("yyyy-MM-dd")" class="form-control" /></label>
+        <button class="btn btn-outline-primary" type="submit">Xem dữ liệu</button>
+        @if (hasCustomPeriod)
+        {
+            <a asp-action="Index" class="btn btn-light">Tháng này</a>
+        }
+    </form>
+
+    <section class="analytics-metric-grid" aria-label="Chỉ số chính">
+        <article class="analytics-metric is-purple">
+            <span class="analytics-metric-label">Giá trị hàng đang tồn</span>
+            <strong>@Model.InventoryValue.ToString("N0") <small>đ</small></strong>
+            <p><b>@Model.TotalQuantity.ToString("N0")</b> đơn vị hàng trong kho</p>
+        </article>
+        <article class="analytics-metric is-green">
+            <span class="analytics-metric-label">Doanh thu trong kỳ</span>
+            <strong>@Model.SalesRevenue.ToString("N0") <small>đ</small></strong>
+            <p>Đã thu <b>@Model.CollectedAmount.ToString("N0") đ</b></p>
+        </article>
+        <article class="analytics-metric @(Model.CustomerDebt > 0 ? "is-red" : "is-green")">
+            <span class="analytics-metric-label">Công nợ hiện tại</span>
+            <strong>@Model.CustomerDebt.ToString("N0") <small>đ</small></strong>
+            <p>@(Model.CustomerDebt > 0 ? "Cần theo dõi thu hồi" : "Không còn công nợ")</p>
+        </article>
+        <article class="analytics-metric is-blue">
+            <span class="analytics-metric-label">Nhập · xuất trong kỳ</span>
+            <div class="analytics-split-value">
+                <strong><small>Nhập</small>@Model.ImportQuantity.ToString("N0")</strong>
+                <strong><small>Xuất</small>@outboundQuantity.ToString("N0")</strong>
+            </div>
+            <p>Chênh lệch <b class="@(netMovement < 0 ? "text-danger" : "text-success")">@(netMovement > 0 ? "+" : "")@netMovement.ToString("N0")</b></p>
+        </article>
+    </section>
+
+    @if (Model.LowStockCount > 0)
+    {
+        <a asp-controller="Inventory" asp-action="Index" class="analytics-alert">
+            <span class="analytics-alert-mark">!</span>
+            <span><strong>@Model.LowStockCount dòng tồn kho đang thấp</strong><small>Kiểm tra các mặt hàng từ 5 đơn vị trở xuống để chủ động nhập hàng.</small></span>
+            <b>Xem tồn kho →</b>
+        </a>
+    }
+
+    <section class="analytics-dashboard-grid">
+        <article class="analytics-panel">
+            <header class="analytics-panel-header">
+                <div><span>Hiệu quả bán hàng</span><h2>Sản phẩm bán chạy</h2></div>
+                <a asp-controller="Reports" asp-action="Sales">Báo cáo bán hàng</a>
+            </header>
+            @if (Model.TopSelling.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Chưa có dữ liệu bán hàng</strong><span>Dữ liệu sẽ xuất hiện khi có đơn bán hoàn tất trong kỳ.</span></div>
+            }
+            else
+            {
+                <div class="analytics-ranking">
+                    @{ var rank = 0; }
+                    @foreach (var row in Model.TopSelling.Take(6))
+                    {
+                        rank++;
+                        var width = maxRevenue <= 0 ? 0 : Math.Max(8, row.Revenue / maxRevenue * 100);
+                        var widthText = width.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                        <div class="analytics-rank-row">
+                            <span class="analytics-rank-number">@rank</span>
+                            <div class="analytics-rank-main">
+                                <div><strong>@row.ProductName</strong><span>@row.Quantity.ToString("N0") đã bán</span></div>
+                                <div class="analytics-bar"><i style="width:@widthText%"></i></div>
+                            </div>
+                            <b>@row.Revenue.ToString("N0") đ</b>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="analytics-panel">
+            <header class="analytics-panel-header">
+                <div><span>Hoạt động mới nhất</span><h2>Giao dịch gần đây</h2></div>
+            </header>
+            @if (Model.RecentDocuments.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Chưa có hoạt động</strong><span>Nhập, xuất, chuyển kho và bán hàng sẽ xuất hiện tại đây.</span></div>
+            }
+            else
+            {
+                <div class="analytics-activity-list">
+                    @foreach (var row in Model.RecentDocuments.Take(7))
+                    {
+                        var controller = row.DocumentType == StockDocumentType.Sale ? "Sales" : "StockDocuments";
+                        <a asp-controller="@controller" asp-action="Details" asp-route-id="@row.Id" class="analytics-activity-row">
+                            <span class="analytics-activity-dot @DocumentTypeClass(row.DocumentType)"></span>
+                            <span><strong>@DocumentTypeLabel(row.DocumentType)</strong><small>@row.DocumentDate.ToString("dd/MM/yyyy HH:mm")</small></span>
+                            <b>@(row.TotalAmount > 0 ? $"{row.TotalAmount:N0} đ" : "Xem")</b>
+                        </a>
+                    }
+                </div>
+            }
+        </article>
+    </section>
+</div>

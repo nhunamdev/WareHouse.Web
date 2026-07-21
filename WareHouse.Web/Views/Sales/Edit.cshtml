@@ -1,0 +1,5 @@
+@model DocumentEditViewModel
+@{ ViewData["Title"] = Model.Id == 0 ? "Tạo đơn bán hàng" : "Sửa đơn bán hàng"; }
+<div class="page-header"><div><h1 class="h3 mb-1">@ViewData["Title"]</h1><p class="text-muted mb-0">Đơn mới được lưu ở trạng thái chờ xử lý; tồn kho và doanh thu chỉ cập nhật khi hoàn tất.</p></div><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+<partial name="_DocumentForm" model="Model" />
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

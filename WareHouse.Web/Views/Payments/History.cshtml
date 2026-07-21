@@ -1,0 +1,75 @@
+@model PagedResult<Payment>
+@{
+    ViewData["Title"] = "Lịch sử phiếu thu";
+    var customers = (IReadOnlyList<Customer>)ViewBag.Customers;
+}
+
+<form method="get" class="filter-bar row g-2 payment-filter">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-lg-4 col-md-6">
+        <select name="customerId" class="form-select">
+            <option value="">Tất cả khách hàng</option>
+            @foreach (var customer in customers)
+            {
+                <option value="@customer.Id" selected="@(ViewBag.CustomerId == customer.Id)">@customer.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-lg-2 col-md-3"><input type="date" name="fromDate" value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))" class="form-control" title="Từ ngày" /></div>
+    <div class="col-lg-2 col-md-3"><input type="date" name="toDate" value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))" class="form-control" title="Đến ngày" /></div>
+    <div class="col-lg-4 payment-filter-actions"><button class="btn btn-outline-primary">Lọc dữ liệu</button></div>
+</form>
+
+<section class="card payment-list-card">
+    <div class="management-list-toolbar">
+        <a asp-action="Index" class="btn btn-outline-primary">← Khách hàng đang nợ</a>
+        <div class="management-list-summary"><span><strong>@Model.TotalItems</strong> phiếu thu</span></div>
+    </div>
+    <div class="table-responsive payment-list-scroll">
+        <table class="table table-hover mb-0 payment-list-table">
+            <thead><tr>
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Khách hàng", Column = "customer", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Ngày thu", Column = "date", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đơn bán", Column = "sale", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Số tiền", Column = "amount", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                <th>Thao tác</th>
+            </tr></thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-muted py-5">Chưa có phiếu thu nào.</td></tr>
+            }
+            @foreach (var item in Model.Items)
+            {
+                var statusText = item.Status switch
+                {
+                    PaymentStatus.Completed => "Đã hoàn thành",
+                    PaymentStatus.Issued => "Đã xuất phiếu",
+                    PaymentStatus.Cancelled => "Đã hủy",
+                    _ => "Chờ xuất phiếu"
+                };
+                var statusClass = item.Status switch
+                {
+                    PaymentStatus.Completed => "is-completed",
+                    PaymentStatus.Issued => "is-issued",
+                    PaymentStatus.Cancelled => "is-cancelled",
+                    _ => "is-draft"
+                };
+                <tr>
+                    <td><strong>@item.Customer.Name</strong><small class="d-block text-muted">@item.Customer.Phone</small></td>
+                    <td class="payment-date-cell">@item.PaymentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>@(item.Allocations.Count > 0 ? $"{item.Allocations.Count} đơn" : item.Document is null ? "Thanh toán chung" : $"Đơn {item.Document.DocumentDate:dd/MM/yyyy}")</td>
+                    <td class="money payment-amount-cell">@item.Amount.ToString("N0") đ</td>
+                    <td><span class="payment-status @statusClass">@statusText</span></td>
+                    <td><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">@(item.Status == PaymentStatus.Completed || item.Status == PaymentStatus.Cancelled ? "Xem" : "Xử lý")</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination" model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["customerId"] = ViewBag.CustomerId?.ToString(), ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"), ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"), ["sort"] = ViewBag.Sort?.ToString(), ["direction"] = ViewBag.Direction?.ToString() } }' />
+    </div>
+</section>

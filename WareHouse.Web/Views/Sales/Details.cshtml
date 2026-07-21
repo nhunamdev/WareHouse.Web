@@ -1,0 +1,177 @@
+@model StockDocument
+@{
+    ViewData["Title"] = "Chi tiết bán hàng";
+    var canManage = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager);
+    var totalQuantity = Model.Details.Sum(x => x.Quantity);
+    var customerPhone = string.IsNullOrWhiteSpace(Model.CustomerPhone)
+        ? Model.Customer?.Phone
+        : Model.CustomerPhone;
+    var statusText = Model.Status switch
+    {
+        DocumentStatus.Completed => "Đã hoàn tất",
+        DocumentStatus.Invoiced => "Đã xuất hóa đơn · Chờ hoàn thành",
+        DocumentStatus.Cancelled => "Đã hủy",
+        _ => "Chờ xuất hóa đơn"
+    };
+    var statusClass = Model.Status switch
+    {
+        DocumentStatus.Completed => "is-completed",
+        DocumentStatus.Invoiced => "is-invoiced",
+        DocumentStatus.Cancelled => "is-cancelled",
+        _ => "is-draft"
+    };
+}
+
+<div class="sales-detail-toolbar">
+    <a asp-action="Index" class="btn btn-sm btn-light">← Danh sách bán hàng</a>
+    <div class="sales-detail-actions">
+        @if (Model.Status == DocumentStatus.Draft && canManage)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">Sửa đơn</a>
+            <form asp-action="IssueInvoice" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Xuất hóa đơn cho đơn hàng này? Đơn vẫn chờ hoàn thành và chưa ghi nhận thanh toán.">
+                <button class="btn btn-sm btn-primary">Xuất hóa đơn</button>
+            </form>
+        }
+        @if (Model.Status == DocumentStatus.Invoiced)
+        {
+            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại hóa đơn</a>
+        }
+        @if (Model.Status == DocumentStatus.Completed)
+        {
+            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại hóa đơn</a>
+            <a asp-action="PrintDelivery" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-secondary">In phiếu giao</a>
+            @if (Model.DebtAmount > 0)
+            {
+                <a asp-controller="Payments" asp-action="Create" asp-route-customerId="@Model.CustomerId"
+                   asp-route-documentId="@Model.Id" class="btn btn-sm btn-outline-success">Thu công nợ</a>
+            }
+        }
+        @if (Model.Status != DocumentStatus.Cancelled && canManage)
+        {
+            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Hủy đơn bán này? Tồn kho và công nợ liên quan sẽ được hoàn tác.">
+                <button class="btn btn-sm btn-outline-danger">Hủy đơn</button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (Model.Status == DocumentStatus.Cancelled)
+{
+    <div class="alert alert-danger sales-detail-alert">Đơn bán đã bị hủy và không còn được xử lý.</div>
+}
+else if (Model.Status == DocumentStatus.Draft)
+{
+    <div class="alert alert-warning sales-detail-alert">
+        Đơn hàng đang chờ xuất hóa đơn, chưa trừ tồn kho và chưa tính vào doanh thu.
+    </div>
+}
+else if (Model.Status == DocumentStatus.Invoiced)
+{
+    <div class="alert alert-info sales-detail-alert">
+        Hóa đơn đã được xuất nhưng đơn hàng chưa hoàn thành. Thanh toán, tồn kho, doanh thu và công nợ vẫn chưa được ghi nhận.
+    </div>
+}
+
+@if (Model.Status == DocumentStatus.Invoiced && canManage)
+{
+    <form asp-action="Complete" asp-route-id="@Model.Id" method="post"
+          class="card sale-completion-panel"
+          data-confirm="Hoàn thành đơn hàng với số tiền khách đã thanh toán? Hệ thống sẽ cập nhật tồn kho, doanh thu và công nợ.">
+        <div class="sale-completion-copy">
+            <small>Bước cuối</small>
+            <strong>Hoàn thành đơn hàng</strong>
+            <span>Nhập số tiền thực tế khách đã thanh toán.</span>
+        </div>
+        <div class="sale-completion-payment">
+            <label for="completePaidAmountDisplay" class="form-label">Khách đã thanh toán</label>
+            <input id="completePaidAmountDisplay" type="text" inputmode="numeric" autocomplete="off"
+                   value="@Model.TotalAmount.ToString("N0")" class="form-control money-input text-end"
+                   required aria-required="true" />
+            <input type="hidden" name="paidAmount"
+                   value="@Model.TotalAmount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                   class="money-value" />
+        </div>
+        <button class="btn btn-success">Hoàn thành đơn</button>
+    </form>
+}
+
+<section class="card sales-detail-overview">
+    <div class="sales-detail-customer">
+        <div class="sales-detail-customer-heading">
+            <div>
+                <small>Khách mua hàng</small>
+                <h1>@(Model.Customer?.Name ?? "Khách lẻ")</h1>
+                <span>@(string.IsNullOrWhiteSpace(customerPhone) ? "Chưa có số điện thoại" : customerPhone)</span>
+            </div>
+            <span class="sales-detail-status @statusClass">@statusText</span>
+        </div>
+
+        <div class="sales-detail-meta">
+            <div><small>Ngày tạo đơn</small><strong>@Model.DocumentDate.ToString("dd/MM/yyyy HH:mm")</strong></div>
+            <div><small>Kho bán</small><strong>@(Model.FromWarehouse?.Name ?? "—")</strong></div>
+            <div><small>Người bán</small><strong>@(string.IsNullOrWhiteSpace(Model.CreatedBy) ? "Hệ thống" : Model.CreatedBy)</strong></div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Remark))
+        {
+            <div class="sales-detail-remark"><small>Ghi chú</small><span>@Model.Remark</span></div>
+        }
+    </div>
+
+    <div class="sales-detail-finance">
+        <div class="is-total"><small>Tổng tiền</small><strong>@Model.TotalAmount.ToString("N0") <span>đ</span></strong></div>
+        @if (Model.Status == DocumentStatus.Completed)
+        {
+            <div class="is-paid"><small>Đã thanh toán</small><strong>@Model.PaidAmount.ToString("N0") <span>đ</span></strong></div>
+            <div class="@(Model.DebtAmount > 0 ? "is-debt" : "is-paid")"><small>Còn nợ</small><strong>@Model.DebtAmount.ToString("N0") <span>đ</span></strong></div>
+        }
+        else
+        {
+            <div><small>Thanh toán</small><strong>Chưa ghi nhận</strong></div>
+            <div><small>Doanh thu</small><strong>Chưa ghi nhận</strong></div>
+        }
+        <div><small>Số lượng</small><strong>@totalQuantity.ToString("N0")</strong></div>
+    </div>
+</section>
+
+<section class="card sales-detail-products-card">
+    <div class="sales-detail-products-heading">
+        <div>
+            <h2>@(Model.Status == DocumentStatus.Completed ? "Sản phẩm đã bán" : "Sản phẩm trong đơn")</h2>
+            <span>@totalQuantity.ToString("N0") sản phẩm</span>
+        </div>
+        <strong>@Model.TotalAmount.ToString("N0") đ</strong>
+    </div>
+
+    <div class="table-responsive sales-detail-products-scroll">
+        <table class="table mb-0 sales-detail-table">
+            <thead>
+                <tr>
+                            <th>Sản phẩm / phân loại</th>
+                    <th class="quantity">Số lượng</th>
+                    <th class="money">Đơn giá</th>
+                    <th class="money">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var line in Model.Details.OrderBy(x => x.Item.Product.Name).ThenBy(x => x.ItemId))
+            {
+                var attributes = WareHouseServices.FormatAttributes(line.Item.ItemAttributes);
+                <tr>
+                    <td>
+                        <div class="import-product-cell">
+                            <strong>@line.Item.Product.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(attributes)) { <small>@attributes</small> }
+                        </div>
+                    </td>
+                    <td class="quantity fw-bold">@line.Quantity.ToString("N0")</td>
+                    <td class="money">@line.Price.ToString("N0") <span class="currency-suffix">đ</span></td>
+                    <td class="money fw-semibold">@line.Amount.ToString("N0") <span class="currency-suffix">đ</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

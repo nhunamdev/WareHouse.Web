@@ -1,0 +1,87 @@
+@model CustomerDetailsViewModel
+@{ ViewData["Title"] = "Chi tiết khách hàng"; }
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@Model.Customer.Name</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Customer.Phone))
+        {
+            <p class="text-muted mb-0">@Model.Customer.Phone</p>
+        }
+    </div>
+    <div>
+        <a asp-controller="Payments" asp-action="Create" asp-route-customerId="@Model.Customer.Id" class="btn btn-primary">+ Thanh toán</a>
+        <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card metric-card"><div class="card-body"><div class="metric-label">Công nợ hiện tại</div><div class="metric-value text-danger">@Model.Customer.Debt.ToString("N0")</div></div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card metric-card"><div class="card-body"><div class="metric-label">Đơn bán còn nợ</div><div class="metric-value">@Model.OutstandingSales.Count</div></div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card metric-card"><div class="card-body"><div class="metric-label">Tổng nợ theo đơn</div><div class="metric-value">@Model.OutstandingSales.Sum(x => x.DebtAmount).ToString("N0")</div></div></div>
+    </div>
+</div>
+
+<form method="get" class="filter-bar row g-2">
+    <input type="hidden" name="id" value="@Model.Customer.Id" />
+    <div class="col-md-4"><input type="date" name="fromDate" value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></div>
+    <div class="col-md-4"><input type="date" name="toDate" value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></div>
+    <div class="col-md-2"><button class="btn btn-outline-primary w-100">Lọc</button></div>
+</form>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold">Lịch sử phát sinh</div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead><tr><th>Ngày</th><th>Nội dung</th><th class="money">Ghi nợ</th><th class="money">Ghi có</th></tr></thead>
+                    <tbody>
+                    @if (Model.Statement.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-center text-muted py-4">Chưa có phát sinh.</td></tr>
+                    }
+                    @foreach (var row in Model.Statement)
+                    {
+                        <tr>
+                            <td>@row.Date.ToString("dd/MM/yyyy")</td>
+                            <td>@row.Description</td>
+                            <td class="money">@row.Debit.ToString("N0")</td>
+                            <td class="money">@row.Credit.ToString("N0")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold">Đơn bán còn nợ</div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead><tr><th>Ngày bán</th><th class="money">Còn nợ</th><th></th></tr></thead>
+                    <tbody>
+                    @if (Model.OutstandingSales.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-center text-muted py-4">Không có đơn bán còn nợ.</td></tr>
+                    }
+                    @foreach (var sale in Model.OutstandingSales)
+                    {
+                        <tr>
+                            <td>@sale.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="money text-danger">@sale.DebtAmount.ToString("N0")</td>
+                            <td class="text-end"><a asp-controller="Sales" asp-action="Details" asp-route-id="@sale.Id" class="btn btn-sm btn-outline-primary">Xem</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,69 @@
+@model IReadOnlyList<UserListItemViewModel>
+@{
+    ViewData["Title"] = "Tài khoản";
+}
+<div class="card">
+    <div class="management-list-toolbar">
+        <a asp-action="Edit" class="btn btn-primary">+ Thêm tài khoản</a>
+        <div class="management-list-summary">
+            <span><strong>@Model.Count</strong> tài khoản</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tên đăng nhập", Column = "username", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Họ tên", Column = "fullname", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Vai trò", Column = "role", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Ngày tạo", Column = "created", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                var roleClass = item.Role == AppRoles.Admin
+                    ? "bg-danger"
+                    : item.Role == AppRoles.Manager ? "bg-primary" : "bg-success";
+                <tr>
+                    <td class="fw-semibold">@item.UserName</td>
+                    <td>@item.FullName</td>
+                    <td><span class="badge @roleClass">@AppRoles.DisplayName(item.Role)</span></td>
+                    <td>
+                        <div>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                        <small class="text-muted">Tạo bởi @(item.CreatedBy ?? "system")</small>
+                        @if (item.UpdatedAt.HasValue)
+                        {
+                            <div class="small mt-1">
+                                Sửa @item.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm")
+                                bởi @(item.UpdatedBy ?? "system")
+                            </div>
+                        }
+                    </td>
+                    <td>
+                        <span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">
+                            @(item.IsActive ? "Đang hoạt động" : "Đã vô hiệu hóa")
+                        </span>
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <a asp-action="ResetPassword" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Đặt mật khẩu</a>
+                        <form asp-action="ToggleActive" asp-route-id="@item.Id" method="post" class="d-inline"
+                              data-confirm="Bạn có chắc muốn @(item.IsActive ? "vô hiệu hóa" : "mở lại") tài khoản này?">
+                            <button class="btn btn-sm @(item.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                @(item.IsActive ? "Vô hiệu hóa" : "Mở lại")
+                            </button>
+                        </form>
+                        <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline"
+                              data-confirm="Bạn có chắc muốn xóa vĩnh viễn tài khoản này?">
+                            <button class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

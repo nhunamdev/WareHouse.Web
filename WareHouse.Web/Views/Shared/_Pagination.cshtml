@@ -1,0 +1,15 @@
+@model PaginationViewModel
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang">
+        <ul class="pagination justify-content-end mb-0">
+            @for (var page = 1; page <= Model.TotalPages; page++)
+            {
+                var values = new Dictionary<string, string?>(Model.RouteValues) { ["page"] = page.ToString() };
+                <li class="page-item @(page == Model.Page ? "active" : "")">
+                    <a class="page-link" href="@Url.Action(Model.Action, values)">@(page)</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

@@ -1,0 +1,65 @@
+@model IReadOnlyList<WareHouse.Data.StoreBanner>
+@inject WareHouse.Web.Services.StoreBannerService BannerService
+@{
+    ViewData["Title"] = "Banner website";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Banner website</h1>
+        <p class="text-muted mb-0">Quản lý ảnh spotlight hiển thị trên trang chủ website bán xe.</p>
+    </div>
+    <a asp-action="Edit" class="btn btn-primary">+ Thêm banner</a>
+</div>
+
+<partial name="_Alerts" />
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 130px">Ảnh</th>
+                    <th>Tiêu đề</th>
+                    <th>URL</th>
+                    <th class="text-center">Thứ tự</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-muted py-5">Chưa có banner. Hãy thêm banner đầu tiên cho trang chủ.</td></tr>
+            }
+            @foreach (var banner in Model)
+            {
+                <tr>
+                    <td>
+                        <img src="@BannerService.ImageUrl(banner.ImagePath)" alt="@banner.Title" class="banner-list-thumbnail" loading="lazy" />
+                    </td>
+                    <td class="fw-semibold">@banner.Title</td>
+                    <td class="text-truncate" style="max-width: 280px">
+                        @if (string.IsNullOrWhiteSpace(banner.Url))
+                        {
+                            <span class="text-muted">Không liên kết</span>
+                        }
+                        else
+                        {
+                            <a href="@banner.Url" target="_blank" rel="noopener">@banner.Url</a>
+                        }
+                    </td>
+                    <td class="text-center">@banner.SortOrder</td>
+                    <td><span class="badge @(banner.IsActive ? "bg-success" : "bg-secondary")">@(banner.IsActive ? "Đang hiển thị" : "Đang ẩn")</span></td>
+                    <td class="text-end text-nowrap">
+                        <a asp-action="Edit" asp-route-id="@banner.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <form asp-action="Delete" asp-route-id="@banner.Id" method="post" class="d-inline" data-confirm="Bạn có chắc muốn xóa banner này?">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

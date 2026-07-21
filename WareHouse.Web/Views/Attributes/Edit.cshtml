@@ -1,0 +1,6 @@
+@model ProductAttribute
+@{ ViewData["Title"] = Model.Id == 0 ? "Thêm thuộc tính" : "Sửa thuộc tính"; }
+<div class="page-header"><h1 class="h3 mb-0">@ViewData["Title"]</h1><a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a></div>
+<div class="card"><div class="card-body"><form method="post" class="row g-3"><input asp-for="Id" type="hidden" /><div asp-validation-summary="ModelOnly" class="text-danger"></div><div class="col-md-8"><label asp-for="Name" class="form-label">Tên thuộc tính</label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>@if (Model.Id > 0) { <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label">Đang hoạt động</label></div></div> }<div class="col-12"><button class="btn btn-primary">Lưu</button> <a asp-action="Index" class="btn btn-light">Hủy</a></div></form></div></div>
+@if (Model.Id > 0) { <partial name="_AuditInfo" model="Model" /> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

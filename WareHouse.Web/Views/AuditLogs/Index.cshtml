@@ -1,0 +1,178 @@
+@using System.Text.Json
+@model PagedResult<AuditLog>
+@{
+    ViewData["Title"] = "Nhật ký hoạt động";
+    var users = ViewBag.Users as IReadOnlyList<string> ?? [];
+    var entityNames = ViewBag.EntityNames as IReadOnlyList<string> ?? [];
+    var currentUserName = ViewBag.UserName as string;
+    var currentAction = ViewBag.Action as string;
+    var currentEntityName = ViewBag.EntityName as string;
+    var actions = new[]
+    {
+        (AuditLogActions.Create, "Tạo mới"),
+        (AuditLogActions.Update, "Cập nhật"),
+        (AuditLogActions.Delete, "Xóa"),
+        (AuditLogActions.Login, "Đăng nhập"),
+        (AuditLogActions.LoginFailed, "Đăng nhập thất bại"),
+        (AuditLogActions.Logout, "Đăng xuất"),
+        (AuditLogActions.ResetPassword, "Đặt lại mật khẩu"),
+        (AuditLogActions.ChangeStatus, "Đổi trạng thái")
+    };
+
+    string ActionLabel(string action) => actions.FirstOrDefault(x => x.Item1 == action).Item2 ?? action;
+    string ActionClass(string action) => action switch
+    {
+        AuditLogActions.Create or AuditLogActions.Login => "bg-success",
+        AuditLogActions.Update or AuditLogActions.ChangeStatus => "bg-primary",
+        AuditLogActions.Delete or AuditLogActions.LoginFailed => "bg-danger",
+        AuditLogActions.ResetPassword => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+    string EntityLabel(string entityName) => entityName switch
+    {
+        nameof(Product) => "Sản phẩm",
+        nameof(Item) => "Phân loại",
+        nameof(ProductAttribute) => "Thuộc tính",
+        nameof(AttributeValue) => "Giá trị thuộc tính",
+        nameof(Warehouse) => "Kho hàng",
+        nameof(WarehouseStock) => "Tồn kho",
+        nameof(Customer) => "Khách hàng",
+        nameof(StockDocument) => "Chứng từ",
+        nameof(StockDocumentDetail) => "Chi tiết chứng từ",
+        nameof(Payment) => "Thanh toán",
+        nameof(PaymentAllocation) => "Phân bổ phiếu thu",
+        "ApplicationUser" => "Tài khoản",
+        "Authentication" => "Đăng nhập",
+        _ => entityName
+    };
+    string FormatJson(string value)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return value;
+        }
+    }
+}
+
+<form method="get" class="filter-bar audit-log-filter row g-2">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-sm-6 col-xl-2">
+        <select name="userName" class="form-select">
+            <option value="">Tất cả người dùng</option>
+            @foreach (var user in users)
+            {
+                <option value="@user" selected="@(currentUserName == user ? "selected" : null)">@user</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+        <select name="action" class="form-select">
+            <option value="">Tất cả thao tác</option>
+            @foreach (var option in actions)
+            {
+                <option value="@option.Item1" selected="@(currentAction == option.Item1 ? "selected" : null)">@option.Item2</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+        <select name="entityName" class="form-select">
+            <option value="">Tất cả đối tượng</option>
+            @foreach (var entityName in entityNames)
+            {
+                <option value="@entityName" selected="@(currentEntityName == entityName ? "selected" : null)">@EntityLabel(entityName)</option>
+            }
+        </select>
+    </div>
+    <div class="col-sm-6 col-xl-2">
+        <input name="fromDate" type="date" value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))" class="form-control" aria-label="Từ ngày" />
+    </div>
+    <div class="col-sm-6 col-xl-2">
+        <input name="toDate" type="date" value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))" class="form-control" aria-label="Đến ngày" />
+    </div>
+    <div class="col-sm-6 col-xl-2 d-flex gap-2">
+        <input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tìm nội dung..." />
+        <button class="btn btn-outline-primary">Lọc</button>
+    </div>
+</form>
+
+<div class="card audit-log-card">
+    <div class="management-list-toolbar management-list-toolbar-readonly">
+        <span class="badge bg-danger audit-admin-badge">Chỉ Admin</span>
+        <div class="management-list-summary">
+            <span><strong>@Model.TotalItems</strong> hoạt động</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 audit-log-table">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Thời gian", Column = "date", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Người dùng", Column = "user", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Thao tác", Column = "action", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đối tượng", Column = "entity", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Nội dung", Column = "description", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "IP / Đường dẫn", Column = "path", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-muted py-5">Chưa có nhật ký phù hợp.</td></tr>
+            }
+            @foreach (var log in Model.Items)
+            {
+                <tr>
+                    <td class="text-nowrap">@log.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td class="fw-semibold">@log.UserName</td>
+                    <td><span class="badge @ActionClass(log.Action)">@ActionLabel(log.Action)</span></td>
+                    <td>
+                        <div class="fw-semibold">@EntityLabel(log.EntityName)</div>
+                        @if (!string.IsNullOrWhiteSpace(log.EntityId))
+                        {
+                            <small class="text-muted">ID: @log.EntityId</small>
+                        }
+                    </td>
+                    <td class="audit-log-description">
+                        <div>@log.Description</div>
+                        @if (!string.IsNullOrWhiteSpace(log.Changes))
+                        {
+                            <details class="audit-change-details">
+                                <summary>Xem dữ liệu thay đổi</summary>
+                                <pre>@FormatJson(log.Changes)</pre>
+                            </details>
+                        }
+                    </td>
+                    <td>
+                        <div>@(log.IpAddress ?? "—")</div>
+                        <small class="text-muted">@log.HttpMethod @log.RequestPath</small>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination" model='new PaginationViewModel
+        {
+            Page = Model.Page,
+            TotalPages = Model.TotalPages,
+            RouteValues = new()
+            {
+                ["userName"] = currentUserName,
+                ["action"] = currentAction,
+                ["entityName"] = currentEntityName,
+                ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"),
+                ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"),
+                ["keyword"] = (string?)ViewBag.Keyword,
+                ["sort"] = (string?)ViewBag.Sort,
+                ["direction"] = (string?)ViewBag.Direction
+            }
+        }' />
+    </div>
+</div>

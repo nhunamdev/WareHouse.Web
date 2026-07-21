@@ -1,0 +1,716 @@
+@model ProductEditViewModel
+@{
+    var isNew = Model.Product.Id == 0;
+    ViewData["Title"] = isNew ? "Thêm sản phẩm" : "Sửa sản phẩm";
+    var categories = ViewBag.Categories as IReadOnlyList<string> ?? [];
+    var units = ViewBag.Units as IReadOnlyList<string> ?? [];
+    var attributeColumnCount = Math.Max(1, Model.AttributeGroups.Count);
+    var productItems = Model.Product.Items
+        .OrderByDescending(x => x.CreatedAt)
+        .ThenByDescending(x => x.Id)
+        .ToList();
+    string ItemImageLabel(Item item)
+    {
+        var attributes = item.ItemAttributes
+            .OrderBy(x => x.AttributeValue.Attribute.Name)
+            .ThenBy(x => x.AttributeValue.SortOrder)
+            .Select(x => $"{x.AttributeValue.Attribute.Name}: {x.AttributeValue.Value}");
+        var text = string.Join(", ", attributes);
+        return string.IsNullOrWhiteSpace(text) ? "Mặc định" : text;
+    }
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@ViewData["Title"]</h1>
+            <p class="text-muted mb-0">Quản lý thông tin sản phẩm và toàn bộ phân loại trong một lần lưu.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="productEditForm" class="btn btn-primary">
+                Lưu sản phẩm và phân loại
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+</div>
+
+<form method="post" id="productEditForm" enctype="multipart/form-data">
+    <input asp-for="Product.Id" type="hidden" />
+    <input asp-for="Product.Code" type="hidden" />
+
+    <div class="product-create-layout">
+    <div class="card mb-3 product-information-card">
+        <div class="card-header bg-white fw-semibold">Thông tin sản phẩm</div>
+        <div class="card-body">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="alert alert-danger"></div>
+            }
+            <div class="row g-3">
+                <div class="col-12">
+                    <label asp-for="Product.Name" class="form-label">Tên sản phẩm</label>
+                    <input asp-for="Product.Name" class="form-control" />
+                    <span asp-validation-for="Product.Name" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Product.Category" class="form-label">Nhóm hàng</label>
+                    <select asp-for="Product.Category" class="form-select">
+                        <option value="">-- Chọn nhóm hàng --</option>
+                        @foreach (var option in categories)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Product.Unit" class="form-label">Đơn vị tính</label>
+                    <select asp-for="Product.Unit" class="form-select">
+                        <option value="">-- Chọn đơn vị tính --</option>
+                        @foreach (var option in units)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Product.ShortDescription" class="form-label">Mô tả ngắn</label>
+                    <textarea asp-for="Product.ShortDescription" rows="2" maxlength="500" class="form-control"
+                              placeholder="Tóm tắt 1–2 câu về điểm nổi bật của sản phẩm..."></textarea>
+                    <div class="form-text">Dùng trên danh sách sản phẩm và tự động tạo mô tả SEO.</div>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Product.DetailContent" class="form-label">Nội dung chi tiết</label>
+                    <textarea asp-for="Product.DetailContent" rows="10" class="form-control"
+                              placeholder="Thiết kế, công năng, đối tượng sử dụng, bảo hành..."></textarea>
+                    <div class="form-text">Soạn nội dung bằng trình biên tập; nên chia thành các đề mục và đoạn ngắn.</div>
+                </div>
+                @if (!isNew)
+                {
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input asp-for="Product.IsActive" class="form-check-input" />
+                            <label asp-for="Product.IsActive" class="form-check-label">Đang hoạt động</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+        <div class="card mb-3 product-variant-card product-editor-card">
+            <div class="card-header bg-white product-variant-header">
+                <div class="product-editor-tabs" role="tablist" aria-label="Nội dung sản phẩm">
+                    <button type="button"
+                            class="product-editor-tab is-active"
+                            data-product-editor-tab="variants"
+                            role="tab"
+                            aria-selected="true">
+                        Phân loại
+                    </button>
+                    <button type="button"
+                            class="product-editor-tab"
+                            data-product-editor-tab="images"
+                            role="tab"
+                            aria-selected="false">
+                        Hình ảnh
+                        <span id="productImageTabCount">@Model.ExistingImages.Count</span>
+                    </button>
+                </div>
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        id="addVariantRow"
+                        data-product-editor-action="variants">
+                    + Thêm dòng
+                </button>
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        id="chooseProductImages"
+                        data-product-editor-action="images"
+                        hidden>
+                    + Thêm ảnh
+                </button>
+            </div>
+            <div class="card-body">
+                <section class="product-editor-panel product-variant-panel"
+                         data-product-editor-panel="variants"
+                         role="tabpanel">
+                @if (Model.AttributeGroups.Count == 0)
+                {
+                    <div class="alert alert-info mb-3">
+                        Chưa có nhóm thuộc tính. Hệ thống vẫn có thể tạo một Item mặc định;
+                        muốn nhập nhiều Màu/Size, hãy khai báo thuộc tính trước.
+                        <a asp-controller="Attributes" asp-action="Index" class="fw-semibold">Mở quản lý thuộc tính</a>
+                    </div>
+                }
+
+                <div id="variantRows"
+                     class="product-variant-list"
+                     style="--variant-attribute-columns: @attributeColumnCount">
+                    @for (var i = 0; i < Model.Variants.Count; i++)
+                    {
+                        var variant = Model.Variants[i];
+                        <div class="product-variant-row product-create-variant-row" data-variant-row>
+                            <input asp-for="Variants[i].Id" type="hidden" data-field="Id" />
+                            <div class="product-variant-number" aria-label="Dòng phân loại">
+                                <span class="variant-row-number">@(i + 1)</span>
+                            </div>
+
+                            <div class="product-create-variant-fields">
+                                <div class="product-create-variant-field-row">
+                                    @foreach (var group in Model.AttributeGroups)
+                                    {
+                                        <div class="product-variant-field">
+                                            <label class="form-label">@group.Name</label>
+                                            <select name="Variants[@i].AttributeValueIds"
+                                                    data-field="AttributeValueIds"
+                                                    class="form-select">
+                                                <option value="0">Không áp dụng</option>
+                                                @foreach (var value in group.Values)
+                                                {
+                                                    <option value="@value.Id"
+                                                            selected="@(variant.AttributeValueIds.Contains(value.Id) ? "selected" : null)">
+                                                        @value.Value
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="product-create-variant-field-row">
+                                    <div class="product-variant-field">
+                                        <label class="form-label">Giá vốn</label>
+                                        <input type="text"
+                                               inputmode="numeric"
+                                               autocomplete="off"
+                                               value="@variant.CostPrice.ToString("N0")"
+                                               class="form-control money-input" />
+                                        <input asp-for="Variants[i].CostPrice"
+                                               type="hidden"
+                                               class="money-value"
+                                               data-field="CostPrice" />
+                                    </div>
+
+                                    <div class="product-variant-field">
+                                        <label class="form-label">Giá bán</label>
+                                        <input type="text"
+                                               inputmode="numeric"
+                                               autocomplete="off"
+                                               value="@variant.SalePrice.ToString("N0")"
+                                               class="form-control money-input" />
+                                        <input asp-for="Variants[i].SalePrice"
+                                               type="hidden"
+                                               class="money-value"
+                                               data-field="SalePrice" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button"
+                                    class="product-variant-delete"
+                                    data-remove-variant
+                                    aria-label="Xóa phân loại"
+                                    title="Xóa phân loại">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 7h16" />
+                                    <path d="M9 7V4h6v3" />
+                                    <path d="M7 7l1 13h8l1-13" />
+                                    <path d="M10 11v5M14 11v5" />
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <div id="variantEmptyState"
+                     class="product-variant-empty text-muted"
+                     hidden="@(Model.Variants.Count > 0)">
+                            Sản phẩm chưa có phân loại. Bấm “Thêm dòng” để bắt đầu nhập.
+                </div>
+                </section>
+
+                <section class="product-editor-panel product-image-panel"
+                         data-product-editor-panel="images"
+                         role="tabpanel"
+                         hidden>
+                    <input asp-for="ImageOrder" type="hidden" id="productImageOrder" />
+                    <input asp-for="PrimaryImageKey" type="hidden" id="productPrimaryImageKey" />
+                    <input asp-for="RemovedImageIds" type="hidden" id="productRemovedImageIds" />
+                    <input asp-for="ImageAssignments" type="hidden" id="productImageAssignments" />
+                    <input asp-for="NewImages"
+                           type="file"
+                           id="productImageInput"
+                           accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                           multiple
+                           hidden />
+
+                    <div class="product-image-dropzone"
+                         id="productImageDropzone"
+                         tabindex="0"
+                         role="button"
+                         data-max-files="15"
+                         data-max-file-size="5242880"
+                         data-max-total-size="26214400"
+                         aria-label="Chọn hoặc thả ảnh sản phẩm vào đây">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 16.5V19h16v-2.5M12 4v11M7.5 8.5 12 4l4.5 4.5" />
+                        </svg>
+                        <div>
+                            <strong>Chọn nhiều ảnh hoặc kéo thả vào đây</strong>
+                            <span>JPG, PNG, WebP · tối đa 5 MB/ảnh · tổng 25 MB</span>
+                        </div>
+                    </div>
+
+                    <div class="product-image-toolbar">
+                        <span>Kéo ảnh để đổi thứ tự. Ảnh đại diện sẽ hiển thị đầu tiên.</span>
+                        <strong id="productImageCount">@Model.ExistingImages.Count/15 ảnh</strong>
+                    </div>
+
+                    <div id="productImageGallery" class="product-image-gallery">
+                        @foreach (var image in Model.ExistingImages)
+                        {
+                            var imageKey = $"existing-{image.Id}";
+                            <article class="product-image-card @(image.IsPrimary ? "is-primary" : null)"
+                                     data-product-image
+                                     data-image-key="@imageKey"
+                                     data-existing-id="@image.Id"
+                                     draggable="true">
+                                <div class="product-image-preview">
+                                    <img src="@(Model.ImageBaseUrl + "/" + image.RelativePath)"
+                                         alt="Ảnh sản phẩm @Model.Product.Name"
+                                         loading="lazy" />
+                                    <span class="product-image-primary-badge">Ảnh đại diện</span>
+                                </div>
+                                <div class="product-image-card-footer">
+                                    <select class="form-select form-select-sm image-item-select" data-image-item>
+                                        <option value="0" selected="@(image.ItemId.HasValue ? null : "selected")">Ảnh chung</option>
+                                        @foreach (var item in productItems)
+                                        {
+                                            <option value="@item.Id"
+                                                    selected="@(image.ItemId == item.Id ? "selected" : null)">
+                                                @ItemImageLabel(item)
+                                            </option>
+                                        }
+                                    </select>
+                                    <button type="button" class="product-image-primary" data-set-primary>
+                                        @(image.IsPrimary ? "Đang đại diện" : "Chọn đại diện")
+                                    </button>
+                                    <button type="button"
+                                            class="product-image-remove"
+                                            data-remove-image
+                                            aria-label="Xóa ảnh"
+                                            title="Xóa ảnh">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+
+                    <div id="productImageEmptyState"
+                         class="product-image-empty"
+                         hidden="@(Model.ExistingImages.Count > 0)">
+                        Sản phẩm chưa có ảnh. Bấm “Thêm ảnh” để tạo thư viện ảnh.
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <template id="variantRowTemplate">
+            <div class="product-variant-row product-create-variant-row" data-variant-row>
+                <input type="hidden" value="0" data-field="Id" />
+                <div class="product-variant-number" aria-label="Dòng phân loại">
+                    <span class="variant-row-number"></span>
+                </div>
+
+                <div class="product-create-variant-fields">
+                    <div class="product-create-variant-field-row">
+                        @foreach (var group in Model.AttributeGroups)
+                        {
+                            <div class="product-variant-field">
+                                <label class="form-label">@group.Name</label>
+                                <select data-field="AttributeValueIds" class="form-select">
+                                    <option value="0">Không áp dụng</option>
+                                    @foreach (var value in group.Values)
+                                    {
+                                        <option value="@value.Id">@value.Value</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="product-create-variant-field-row">
+                        <div class="product-variant-field">
+                            <label class="form-label">Giá vốn</label>
+                            <input type="text"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   value="0"
+                                   class="form-control money-input" />
+                            <input type="hidden" value="0" class="money-value" data-field="CostPrice" />
+                        </div>
+
+                        <div class="product-variant-field">
+                            <label class="form-label">Giá bán</label>
+                            <input type="text"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   value="0"
+                                   class="form-control money-input" />
+                            <input type="hidden" value="0" class="money-value" data-field="SalePrice" />
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button"
+                        class="product-variant-delete"
+                        data-remove-variant
+                        aria-label="Xóa phân loại"
+                        title="Xóa phân loại">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h16" />
+                        <path d="M9 7V4h6v3" />
+                        <path d="M7 7l1 13h8l1-13" />
+                        <path d="M10 11v5M14 11v5" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+
+        <template id="productImageTemplate">
+            <article class="product-image-card"
+                     data-product-image
+                     draggable="true">
+                <div class="product-image-preview">
+                    <img alt="Ảnh sản phẩm mới" />
+                    <span class="product-image-primary-badge">Ảnh đại diện</span>
+                    <span class="product-image-new-badge">Mới</span>
+                </div>
+                <div class="product-image-card-footer">
+                    <select class="form-select form-select-sm image-item-select" data-image-item>
+                        <option value="0" selected>Ảnh chung</option>
+                        @foreach (var item in productItems)
+                        {
+                            <option value="@item.Id">@ItemImageLabel(item)</option>
+                        }
+                    </select>
+                    <button type="button" class="product-image-primary" data-set-primary>Chọn đại diện</button>
+                    <button type="button"
+                            class="product-image-remove"
+                            data-remove-image
+                            aria-label="Xóa ảnh"
+                            title="Xóa ảnh">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+                        </svg>
+                    </button>
+                </div>
+            </article>
+        </template>
+    </div>
+
+</form>
+
+@if (!isNew)
+{
+    <partial name="_AuditInfo" model="Model.Product" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/lib/tinymce/tinymce.min.js" asp-append-version="true"></script>
+    <script>
+        (() => {
+            const form = document.getElementById("productEditForm");
+            if (!form) return;
+
+            const detailField = document.getElementById("Product_DetailContent");
+            if (!detailField || !window.tinymce) return;
+            window.tinymce.init({
+                target: detailField,
+                license_key: "gpl",
+                height: 430,
+                menubar: "file edit view insert format tools table",
+                plugins: "advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount",
+                toolbar: "undo redo | blocks | bold italic underline | forecolor backcolor | alignleft aligncenter alignright | bullist numlist | link image media table | removeformat code fullscreen",
+                branding: false,
+                promotion: false,
+                statusbar: true,
+                content_style: "body { font-family: Inter, Arial, sans-serif; font-size: 16px; line-height: 1.7; padding: 1rem; }"
+            });
+        })();
+    </script>
+    <script>
+            (() => {
+                "use strict";
+
+                const form = document.getElementById("productEditForm");
+                const rowsContainer = document.getElementById("variantRows");
+                const rowTemplate = document.getElementById("variantRowTemplate");
+                const addButton = document.getElementById("addVariantRow");
+                const emptyState = document.getElementById("variantEmptyState");
+
+                if (!form || !rowsContainer || !rowTemplate || !addButton || !emptyState) return;
+
+                const reindexRows = () => {
+                    const rows = [...rowsContainer.querySelectorAll("[data-variant-row]")];
+
+                    rows.forEach((row, index) => {
+                        const number = row.querySelector(".variant-row-number");
+                        if (number) number.textContent = String(index + 1);
+
+                        const idField = row.querySelector('[data-field="Id"]');
+                        if (idField) idField.name = `Variants[${index}].Id`;
+
+                        row.querySelectorAll('[data-field="AttributeValueIds"]').forEach((field) => {
+                            field.name = `Variants[${index}].AttributeValueIds`;
+                        });
+
+                        row.querySelectorAll('[data-field="CostPrice"], [data-field="SalePrice"]').forEach((field) => {
+                            field.name = `Variants[${index}].${field.dataset.field}`;
+                        });
+                    });
+
+                    emptyState.hidden = rows.length > 0;
+                };
+
+                const appendRow = () => {
+                    const row = rowTemplate.content.firstElementChild.cloneNode(true);
+
+                    rowsContainer.appendChild(row);
+                    reindexRows();
+                    window.WareHouseSelect2?.init(row);
+                    (row.querySelector(".select2-selection") || row.querySelector(".money-input"))?.focus();
+                };
+
+                addButton.addEventListener("click", () => appendRow());
+
+                rowsContainer.addEventListener("click", (event) => {
+                    const button = event.target.closest("button");
+                    const row = button?.closest("[data-variant-row]");
+                    if (!button || !row) return;
+
+                    if (button.matches("[data-remove-variant]")) {
+                        const isExisting = Number(row.querySelector('[data-field="Id"]')?.value || 0) > 0;
+                        const message = isExisting
+                ? "Xóa phân loại này khỏi sản phẩm? Phân loại đã có tồn kho hoặc giao dịch sẽ không thể xóa."
+                : "Xóa dòng phân loại này?";
+                        if (!window.confirm(message)) return;
+                        window.WareHouseSelect2?.destroy(row);
+                        row.remove();
+                        reindexRows();
+                    }
+                });
+
+                const editorTabs = [...document.querySelectorAll("[data-product-editor-tab]")];
+                const editorPanels = [...document.querySelectorAll("[data-product-editor-panel]")];
+                const editorActions = [...document.querySelectorAll("[data-product-editor-action]")];
+                const imageInput = document.getElementById("productImageInput");
+                const chooseImagesButton = document.getElementById("chooseProductImages");
+                const imageDropzone = document.getElementById("productImageDropzone");
+                const imageGallery = document.getElementById("productImageGallery");
+                const imageTemplate = document.getElementById("productImageTemplate");
+                const imageEmptyState = document.getElementById("productImageEmptyState");
+                const imageCount = document.getElementById("productImageCount");
+                const imageTabCount = document.getElementById("productImageTabCount");
+                const imageOrder = document.getElementById("productImageOrder");
+                const primaryImageKey = document.getElementById("productPrimaryImageKey");
+                const removedImageIds = document.getElementById("productRemovedImageIds");
+                const imageAssignments = document.getElementById("productImageAssignments");
+                const newFiles = new Map();
+                const removedIds = new Set((removedImageIds?.value || "")
+                    .split(",").map(Number).filter(Number.isInteger));
+                let nextNewImageKey = 0;
+                let draggedImage = null;
+
+                const switchEditorTab = (name) => {
+                    editorTabs.forEach((tab) => {
+                        const active = tab.dataset.productEditorTab === name;
+                        tab.classList.toggle("is-active", active);
+                        tab.setAttribute("aria-selected", String(active));
+                    });
+                    editorPanels.forEach((panel) => {
+                        panel.hidden = panel.dataset.productEditorPanel !== name;
+                    });
+                    editorActions.forEach((action) => {
+                        action.hidden = action.dataset.productEditorAction !== name;
+                    });
+                };
+
+                editorTabs.forEach((tab) => tab.addEventListener("click", () =>
+                    switchEditorTab(tab.dataset.productEditorTab)));
+
+                const imageCards = () => [...imageGallery.querySelectorAll("[data-product-image]")];
+                const syncGallery = () => {
+                    const cards = imageCards();
+                    let selectedKey = primaryImageKey.value;
+                    if (!cards.some((card) => card.dataset.imageKey === selectedKey))
+                        selectedKey = cards[0]?.dataset.imageKey || "";
+                    primaryImageKey.value = selectedKey;
+
+                    cards.forEach((card) => {
+                        const primary = card.dataset.imageKey === selectedKey;
+                        card.classList.toggle("is-primary", primary);
+                        const button = card.querySelector("[data-set-primary]");
+                        if (button) button.textContent = primary ? "Đang đại diện" : "Chọn đại diện";
+                    });
+
+                    imageOrder.value = cards.map((card) => card.dataset.imageKey).join(",");
+                    imageAssignments.value = cards.map((card) =>
+                        `${card.dataset.imageKey}=${Number(card.querySelector("[data-image-item]")?.value || 0)}`).join(",");
+                    removedImageIds.value = [...removedIds].join(",");
+                    imageEmptyState.hidden = cards.length > 0;
+                    imageCount.textContent = `${cards.length}/${imageDropzone.dataset.maxFiles} ảnh`;
+                    imageTabCount.textContent = String(cards.length);
+                };
+
+                const appendImages = (files) => {
+                    const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+                    const maxFiles = Number(imageDropzone.dataset.maxFiles);
+                    const maxFileSize = Number(imageDropzone.dataset.maxFileSize);
+                    const maxTotalSize = Number(imageDropzone.dataset.maxTotalSize);
+                    const candidates = [...files];
+
+                    if (imageCards().length + candidates.length > maxFiles) {
+                        window.alert(`Mỗi sản phẩm chỉ được lưu tối đa ${maxFiles} ảnh.`);
+                        return;
+                    }
+                    const hasAcceptedType = (file) => acceptedTypes.has(file.type) ||
+                        (!file.type && /\.(jpe?g|png|webp)$/i.test(file.name));
+                    if (candidates.some((file) => !hasAcceptedType(file))) {
+                        window.alert("Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.");
+                        return;
+                    }
+                    if (candidates.some((file) => file.size <= 0 || file.size > maxFileSize)) {
+                        window.alert("Mỗi ảnh phải có dữ liệu và không vượt quá 5 MB.");
+                        return;
+                    }
+                    const currentNewSize = [...newFiles.values()].reduce((sum, file) => sum + file.size, 0);
+                    if (currentNewSize + candidates.reduce((sum, file) => sum + file.size, 0) > maxTotalSize) {
+                        window.alert("Tổng dung lượng ảnh mới không được vượt quá 25 MB.");
+                        return;
+                    }
+
+                    candidates.forEach((file) => {
+                        const key = `new-client-${nextNewImageKey++}`;
+                        const card = imageTemplate.content.firstElementChild.cloneNode(true);
+                        const preview = card.querySelector("img");
+                        const objectUrl = URL.createObjectURL(file);
+                        card.dataset.imageKey = key;
+                        card.dataset.objectUrl = objectUrl;
+                        preview.src = objectUrl;
+                        preview.alt = file.name;
+                        preview.title = file.name;
+                        newFiles.set(key, file);
+                        imageGallery.appendChild(card);
+                        window.WareHouseSelect2?.init(card);
+                    });
+                    syncGallery();
+                };
+
+                chooseImagesButton?.addEventListener("click", () => imageInput?.click());
+                imageDropzone?.addEventListener("click", () => imageInput?.click());
+                imageDropzone?.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        imageInput?.click();
+                    }
+                });
+                imageInput?.addEventListener("change", () => {
+                    appendImages(imageInput.files || []);
+                    imageInput.value = "";
+                });
+                ["dragenter", "dragover"].forEach((name) => imageDropzone?.addEventListener(name, (event) => {
+                    event.preventDefault();
+                    imageDropzone.classList.add("is-dragover");
+                }));
+                ["dragleave", "drop"].forEach((name) => imageDropzone?.addEventListener(name, (event) => {
+                    event.preventDefault();
+                    imageDropzone.classList.remove("is-dragover");
+                }));
+                imageDropzone?.addEventListener("drop", (event) => appendImages(event.dataTransfer?.files || []));
+
+                imageGallery?.addEventListener("click", (event) => {
+                    const card = event.target.closest("[data-product-image]");
+                    if (!card) return;
+                    if (event.target.closest("[data-image-item]")) {
+                        syncGallery();
+                        return;
+                    }
+                    if (event.target.closest("[data-set-primary]")) {
+                        primaryImageKey.value = card.dataset.imageKey;
+                        syncGallery();
+                        return;
+                    }
+                    if (!event.target.closest("[data-remove-image]")) return;
+                    if (!window.confirm("Bạn có chắc muốn xóa ảnh này khỏi sản phẩm?")) return;
+
+                    const existingId = Number(card.dataset.existingId || 0);
+                    if (existingId > 0) removedIds.add(existingId);
+                    else newFiles.delete(card.dataset.imageKey);
+                    window.WareHouseSelect2?.destroy(card);
+                    if (card.dataset.objectUrl) URL.revokeObjectURL(card.dataset.objectUrl);
+                    card.remove();
+                    syncGallery();
+                });
+
+                imageGallery?.addEventListener("dragstart", (event) => {
+                    draggedImage = event.target.closest("[data-product-image]");
+                    draggedImage?.classList.add("is-dragging");
+                    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+                });
+                imageGallery?.addEventListener("dragover", (event) => {
+                    if (!draggedImage) return;
+                    event.preventDefault();
+                    const target = event.target.closest("[data-product-image]");
+                    if (!target || target === draggedImage) return;
+                    const box = target.getBoundingClientRect();
+                    const after = event.clientY > box.top + box.height / 2 ||
+                        (Math.abs(event.clientY - (box.top + box.height / 2)) < box.height / 3 &&
+                            event.clientX > box.left + box.width / 2);
+                    imageGallery.insertBefore(draggedImage, after ? target.nextSibling : target);
+                });
+                imageGallery?.addEventListener("dragend", () => {
+                    draggedImage?.classList.remove("is-dragging");
+                    draggedImage = null;
+                    syncGallery();
+                });
+
+                const prepareImagesForSubmit = (event) => {
+                    const dataTransfer = typeof DataTransfer === "function" ? new DataTransfer() : null;
+                    if (!dataTransfer && newFiles.size > 0) {
+                        event.preventDefault();
+                        window.alert("Trình duyệt chưa hỗ trợ tải nhiều ảnh. Vui lòng dùng Chrome hoặc Edge phiên bản mới.");
+                        return;
+                    }
+
+                    let postedIndex = 0;
+                    let postedPrimaryKey = "";
+                    const postedAssignments = [];
+                    const postedOrder = imageCards().map((card) => {
+                        let postedKey = card.dataset.imageKey;
+                        if (postedKey.startsWith("new-client-")) {
+                            dataTransfer.items.add(newFiles.get(postedKey));
+                            postedKey = `new-${postedIndex++}`;
+                        }
+                        postedAssignments.push(`${postedKey}=${Number(card.querySelector("[data-image-item]")?.value || 0)}`);
+                        if (card.dataset.imageKey === primaryImageKey.value) postedPrimaryKey = postedKey;
+                        return postedKey;
+                    });
+                    if (dataTransfer) imageInput.files = dataTransfer.files;
+                    imageOrder.value = postedOrder.join(",");
+                    imageAssignments.value = postedAssignments.join(",");
+                    primaryImageKey.value = postedPrimaryKey || postedOrder[0] || "";
+                };
+
+                form.addEventListener("submit", (event) => {
+                    reindexRows();
+                    prepareImagesForSubmit(event);
+                });
+                reindexRows();
+                syncGallery();
+            })();
+    </script>
+}

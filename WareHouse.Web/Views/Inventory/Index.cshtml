@@ -1,0 +1,253 @@
+@model InventoryViewModel
+@{
+    ViewData["Title"] = "Tồn kho";
+    var selectedWarehouse = Model.Warehouses.FirstOrDefault(x => x.Id == Model.WarehouseId);
+    var scopeLabel = selectedWarehouse is null ? "Toàn bộ kho" : selectedWarehouse.Name;
+    var hasFilters = Model.ProductId.HasValue || Model.WarehouseId.HasValue || !string.IsNullOrWhiteSpace(Model.Keyword);
+}
+
+<div class="management-context-toolbar">
+    <div class="management-list-summary">
+        <span><strong>@Model.Summary.ProductCount</strong> sản phẩm</span>
+        <span><strong>@Model.ProductGroups.Sum(x => x.VariantCount)</strong> mặt hàng</span>
+    </div>
+    <div class="inventory-scope-badge" title="Phạm vi số liệu đang hiển thị">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 8.5 12 4l8 4.5v9L12 22l-8-4.5z" />
+            <path d="M4 8.5 12 13l8-4.5M12 13v9" />
+        </svg>
+        <span><small>Phạm vi</small><strong>@scopeLabel</strong></span>
+    </div>
+    @if (Model.Summary.NegativeStockProductCount > 0)
+    {
+        <a asp-controller="Backorders" asp-action="Index" asp-route-warehouseId="@Model.WarehouseId"
+           class="btn btn-sm btn-outline-danger">
+            @Model.Summary.NegativeStockProductCount sản phẩm đang thiếu · @Model.Summary.MissingQuantity.ToString("N0")
+        </a>
+    }
+</div>
+
+<section class="inventory-overview-grid" aria-label="Số liệu tổng quan tồn kho">
+    <article class="inventory-overview-card is-primary">
+        <div class="inventory-overview-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5 12 4l8 4.5v9L12 22l-8-4.5z"/><path d="M4 8.5 12 13l8-4.5M12 13v9"/></svg>
+        </div>
+        <div>
+            <span>Tổng số lượng tồn</span>
+            <strong>@Model.Summary.TotalQuantity.ToString("N0")</strong>
+            <small>đơn vị hàng trong @scopeLabel.ToLowerInvariant()</small>
+        </div>
+    </article>
+    <article class="inventory-overview-card is-value">
+        <div class="inventory-overview-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v10H4z"/><path d="M8 10h.01M16 14h.01M12 9.5c-1.1 0-2 .7-2 1.5s.9 1.5 2 1.5 2 .7 2 1.5-.9 1.5-2 1.5"/></svg>
+        </div>
+        <div>
+            <span>Giá trị tồn</span>
+            <strong>@Model.Summary.InventoryValue.ToString("N0") <small>đ</small></strong>
+            <small>Tính theo giá vốn hiện tại</small>
+        </div>
+    </article>
+    <article class="inventory-overview-card is-success">
+        <div class="inventory-overview-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5"/></svg>
+        </div>
+        <div>
+            <span>Sản phẩm còn hàng</span>
+            <strong>@Model.Summary.InStockProductCount</strong>
+            <small>trên @Model.Summary.ProductCount sản phẩm đang xem</small>
+        </div>
+    </article>
+    <article class="inventory-overview-card is-danger">
+        <div class="inventory-overview-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 17h.01"/><path d="M10.3 4.7 3.4 17a2 2 0 0 0 1.7 3h13.8a2 2 0 0 0 1.7-3L13.7 4.7a2 2 0 0 0-3.4 0z"/></svg>
+        </div>
+        <div>
+            <span>Sản phẩm hết hàng</span>
+            <strong>@Model.Summary.OutOfStockProductCount</strong>
+            <small>Cần nhập thêm nếu còn kinh doanh</small>
+        </div>
+    </article>
+</section>
+
+<form method="get" class="filter-bar inventory-filter row g-2">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-xl-3 col-md-6">
+        <label asp-for="ProductId" class="visually-hidden">Sản phẩm</label>
+        <select asp-for="ProductId" class="form-select">
+            <option value="">Tất cả sản phẩm</option>
+            @foreach (var product in Model.Products)
+            {
+                <option value="@product.Id">@product.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <label asp-for="WarehouseId" class="visually-hidden">Kho hàng</label>
+        <select asp-for="WarehouseId" class="form-select">
+            <option value="">Tất cả kho</option>
+            @foreach (var warehouse in Model.Warehouses)
+            {
+                <option value="@warehouse.Id">@warehouse.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-xl-4 col-md-8">
+        <label asp-for="Keyword" class="visually-hidden">Từ khóa</label>
+        <input asp-for="Keyword" class="form-control" placeholder="Tìm tên, nhóm hàng hoặc thuộc tính..." />
+    </div>
+    <div class="col-xl-2 col-md-4 inventory-filter-actions">
+        <button class="btn btn-outline-primary">Lọc dữ liệu</button>
+        @if (hasFilters)
+        {
+            <a asp-action="Index" class="btn btn-light" title="Xóa bộ lọc">Đặt lại</a>
+        }
+    </div>
+</form>
+
+<div class="card inventory-list-card">
+    <div class="management-list-toolbar management-list-toolbar-readonly">
+        <div class="management-list-hint">Mở từng sản phẩm để xem tồn theo mặt hàng và từng kho.</div>
+        <div class="management-list-summary">
+            <span><strong>@Model.Summary.TotalQuantity.ToString("N0")</strong> đơn vị tồn</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 inventory-product-table">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Sản phẩm", Column = "product", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Nhóm hàng", Column = "category", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đơn vị", Column = "unit", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Phân loại", Column = "variants", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "quantity" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tổng tồn", Column = "stock", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "quantity" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Giá trị tồn", Column = "value", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.ProductGroups.Count == 0)
+            {
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        Không có dữ liệu tồn kho phù hợp với bộ lọc.
+                    </td>
+                </tr>
+            }
+            @foreach (var product in Model.ProductGroups)
+            {
+                var detailId = $"inventory-product-{product.ProductId}";
+                var isOutOfStock = product.TotalQuantity < 1;
+                var hasNegativeStock = product.HasNegativeStock;
+                <tr class="inventory-product-summary" data-inventory-summary="@product.ProductId">
+                    <td>
+                        <button type="button"
+                                class="product-expand-button"
+                                data-inventory-toggle
+                                aria-expanded="false"
+                                aria-controls="@detailId">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                            <span>@product.ProductName</span>
+                        </button>
+                    </td>
+                    <td>@(product.Category ?? "—")</td>
+                    <td>@(product.Unit ?? "—")</td>
+                    <td class="quantity">@product.VariantCount</td>
+                    <td class="quantity fw-bold @(isOutOfStock || hasNegativeStock ? "text-danger" : "text-success")">
+                        @product.TotalQuantity.ToString("N0")
+                    </td>
+                    <td class="money fw-semibold">@product.InventoryValue.ToString("N0") <span class="currency-suffix">đ</span></td>
+                    <td>
+                        <span class="inventory-stock-status @(isOutOfStock || hasNegativeStock ? "is-empty" : "is-available")">
+                            @(hasNegativeStock ? $"Thiếu {product.MissingQuantity:N0}" : isOutOfStock ? "Hết hàng" : "Còn hàng")
+                        </span>
+                    </td>
+                </tr>
+                <tr id="@detailId" class="inventory-variant-detail" hidden>
+                    <td colspan="7">
+                        <div class="inventory-variant-panel">
+                            <div class="inventory-variant-scroll">
+                                <table class="inventory-variant-table">
+                                    <thead>
+                                        <tr>
+                                        <th>Thuộc tính phân loại</th>
+                                            <th>Giá vốn</th>
+                                            <th>Tồn theo kho</th>
+                                            <th>Tổng tồn</th>
+                                            <th>Giá trị tồn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach (var variant in product.Variants)
+                                    {
+                                        var variantOutOfStock = variant.TotalQuantity < 1;
+                                        var variantHasNegativeStock = variant.Quantities.Values.Any(quantity => quantity < 0);
+                                        <tr>
+                                            <td>
+                                                <div class="inventory-variant-name">
+                                                    <span class="inventory-variant-dot @(variantOutOfStock || variantHasNegativeStock ? "is-empty" : "is-available")"></span>
+                                                    <strong>@(string.IsNullOrWhiteSpace(variant.Attributes) ? "Mặc định" : variant.Attributes)</strong>
+                                                </div>
+                                            </td>
+                                            <td class="money">@variant.CostPrice.ToString("N0") <span class="currency-suffix">đ</span></td>
+                                            <td>
+                                                <div class="inventory-warehouse-stocks">
+                                                    @foreach (var warehouse in Model.Matrix.Warehouses)
+                                                    {
+                                                        var warehouseQuantity = variant.Quantities.GetValueOrDefault(warehouse.Id);
+                                                        <span class="inventory-warehouse-stock @(warehouseQuantity < 1 ? "is-empty" : string.Empty)"
+                                                              title="Tồn tại @warehouse.Name">
+                                                            <small>@warehouse.Name</small>
+                                                            <strong>@warehouseQuantity.ToString("N0")</strong>
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td class="quantity fw-bold @(variantOutOfStock || variantHasNegativeStock ? "text-danger" : "text-success")">
+                                                @variant.TotalQuantity.ToString("N0")
+                                            </td>
+                                            <td class="money fw-semibold">@variant.InventoryValue.ToString("N0") <span class="currency-suffix">đ</span></td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            "use strict";
+
+            document.querySelectorAll("[data-inventory-toggle]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const detailRow = document.getElementById(button.getAttribute("aria-controls"));
+                    if (!detailRow) return;
+
+                    const isExpanded = button.getAttribute("aria-expanded") === "true";
+                    if (!isExpanded) {
+                        document.querySelectorAll('[data-inventory-toggle][aria-expanded="true"]').forEach((openButton) => {
+                            if (openButton === button) return;
+                            const openRow = document.getElementById(openButton.getAttribute("aria-controls"));
+                            openButton.setAttribute("aria-expanded", "false");
+                            if (openRow) openRow.hidden = true;
+                            openButton.closest("[data-inventory-summary]")?.classList.remove("is-expanded");
+                        });
+                    }
+
+                    button.setAttribute("aria-expanded", String(!isExpanded));
+                    detailRow.hidden = isExpanded;
+                    button.closest("[data-inventory-summary]")?.classList.toggle("is-expanded", !isExpanded);
+                });
+            });
+        })();
+    </script>
+}

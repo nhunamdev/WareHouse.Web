@@ -1,0 +1,99 @@
+@inject Microsoft.Extensions.Options.IOptions<StoreContactOptions> ContactOptions
+@{
+    var contact = ContactOptions.Value;
+    var currentPath = Context.Request.Path.Value?.TrimEnd('/') ?? string.Empty;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@(ViewData["MetaDescription"] ?? "Xe đạp Tuệ Anh - những mẫu xe đẹp, dễ đi và phù hợp cho cả gia đình.")" />
+    <title>@(ViewData["Title"] ?? "Xe đạp Tuệ Anh")</title>
+    <link rel="icon" type="image/png" href="~/themes/default/images/ic_logo_tueanh.png" />
+    @await RenderSectionAsync("Head", required: false)
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="store-header sticky-top">
+        <nav class="navbar navbar-expand-lg navbar-light py-2">
+            <div class="container-xl">
+                <a class="brand d-flex align-items-center gap-2 text-decoration-none" asp-controller="Home" asp-action="Index">
+                    <img class="brand-logo" src="~/themes/default/images/ic_logo_tueanh.png" width="48" height="48" alt="Xe đạp Tuệ Anh" />
+                    <span><strong>Xe đạp Tuệ Anh</strong><small>ĐI ÊM · SỐNG KHỎE</small></span>
+                </a>
+                <button class="navbar-toggler border-0 shadow-none" type="button"
+                        data-bs-toggle="offcanvas" data-bs-target="#storeNav"
+                        aria-controls="storeNav" aria-label="Mở menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="offcanvas offcanvas-end offcanvas-lg store-nav-panel" tabindex="-1" id="storeNav" aria-labelledby="storeNavLabel">
+                    <div class="offcanvas-header d-lg-none">
+                        <a class="brand d-flex align-items-center gap-2 text-decoration-none" asp-controller="Home" asp-action="Index">
+                            <img class="brand-logo" src="~/themes/default/images/ic_logo_tueanh.png" width="48" height="48" alt="Xe đạp Tuệ Anh" />
+                            <span id="storeNavLabel"><strong>Xe đạp Tuệ Anh</strong><small>DANH MỤC SẢN PHẨM</small></span>
+                        </a>
+                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="offcanvas" aria-label="Đóng menu"></button>
+                    </div>
+                    <div class="offcanvas-body">
+                    <ul class="navbar-nav mx-lg-auto gap-lg-2">
+                        @foreach (var category in StoreCategories.All)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(string.Equals(currentPath, category.Url, StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                                   href="@category.Url">@category.Name</a>
+                            </li>
+                        }
+                    </ul>
+                    <div class="store-nav-actions d-flex align-items-center gap-2">
+                        <a class="header-search" href="/#catalog" aria-label="Tìm kiếm"><span>⌕</span><span class="store-search-label d-none d-xl-inline">Tìm xe</span></a>
+                        <a class="btn btn-dark rounded-pill px-3" href="@contact.TelephoneUrl">Gọi @contact.PhoneLabel</a>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>@RenderBody()</main>
+
+    <footer class="store-footer" id="contact">
+        <div class="container-xl py-4">
+            <div class="row g-4 align-items-start">
+                <div class="col-lg-6">
+                    <a class="brand d-inline-flex align-items-center gap-2 text-decoration-none mb-3" asp-controller="Home" asp-action="Index">
+                        <img class="brand-logo" src="~/themes/default/images/ic_logo_tueanh.png" width="54" height="54" alt="Xe đạp Tuệ Anh" />
+                        <span><strong>Xe đạp Tuệ Anh</strong><small>CHẤT LƯỢNG · UY TÍN · ĐỒNG HÀNH</small></span>
+                    </a>
+                    <p class="footer-copy mb-0">Tư vấn chiếc xe phù hợp với nhu cầu và ngân sách của bạn.</p>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <h6>Liên hệ</h6>
+                    <a href="@contact.TelephoneUrl">@contact.PhoneLabel</a>
+                    <a href="@contact.ZaloAddress" target="_blank" rel="noopener">Nhắn tin Zalo</a>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <h6>Sản phẩm</h6>
+                    <a href="/#catalog">Xem xe đang bán</a>
+                </div>
+            </div>
+            <div class="footer-bottom mt-4 pt-3"><span>© 2026 Xe đạp Tuệ Anh</span><span>Chất lượng · Uy tín · Đồng hành</span></div>
+        </div>
+    </footer>
+
+    <aside class="floating-contact" aria-label="Liên hệ nhanh">
+        <a class="floating-contact-button is-phone" href="@contact.TelephoneUrl" aria-label="Gọi @contact.PhoneLabel" title="Gọi @contact.PhoneLabel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2c.3-.3.8-.4 1.2-.2 1.3.5 2.7.8 4.2.8.7 0 1.2.5 1.2 1.2v3.8c0 .7-.5 1.2-1.2 1.2C10.4 22 2 13.6 2 3.2 2 2.5 2.5 2 3.2 2H7c.7 0 1.2.5 1.2 1.2 0 1.5.3 2.9.8 4.2.1.4.1.9-.2 1.2l-2.2 2.2Z" /></svg>
+        </a>
+        <a class="floating-contact-button is-zalo" href="@contact.ZaloAddress" target="_blank" rel="noopener" aria-label="Nhắn tin Zalo" title="Nhắn tin Zalo">Zalo</a>
+        <button class="floating-contact-button is-top" type="button" data-scroll-top aria-label="Lên đầu trang" title="Lên đầu trang">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+        </button>
+    </aside>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

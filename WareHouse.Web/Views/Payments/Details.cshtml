@@ -1,0 +1,140 @@
+@model Payment
+@{
+    ViewData["Title"] = "Chi tiết phiếu thu";
+    var canManage = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager);
+    var isAutomatic = Model.Remark == "Thanh toán khi bán hàng";
+    var methodName = Model.PaymentMethod switch
+    {
+        PaymentMethod.Cash => "Tiền mặt",
+        PaymentMethod.BankTransfer => "Chuyển khoản",
+        _ => "Khác"
+    };
+    var statusText = Model.Status switch
+    {
+        PaymentStatus.Completed => "Đã hoàn thành",
+        PaymentStatus.Issued => "Đã xuất phiếu · Chờ hoàn thành",
+        PaymentStatus.Cancelled => "Đã hủy",
+        _ => "Chờ xuất phiếu"
+    };
+    var statusClass = Model.Status switch
+    {
+        PaymentStatus.Completed => "is-completed",
+        PaymentStatus.Issued => "is-issued",
+        PaymentStatus.Cancelled => "is-cancelled",
+        _ => "is-draft"
+    };
+}
+
+<div class="payment-detail-toolbar">
+    <a asp-action="Index" class="btn btn-sm btn-light">← Khách hàng đang nợ</a>
+    <div class="payment-detail-actions">
+        @if (!isAutomatic && canManage && Model.Status is PaymentStatus.Draft or PaymentStatus.Issued or PaymentStatus.Completed)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">Sửa phiếu</a>
+        }
+        @if (!isAutomatic && canManage && Model.Status == PaymentStatus.Draft)
+        {
+            <form asp-action="Issue" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Xuất phiếu thu này? Công nợ vẫn chưa thay đổi cho đến khi hoàn thành phiếu.">
+                <button class="btn btn-sm btn-primary">Xuất phiếu thu</button>
+            </form>
+        }
+        @if (Model.Status is PaymentStatus.Issued or PaymentStatus.Completed)
+        {
+            <a asp-action="PrintReceipt" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In phiếu thu</a>
+        }
+        @if (!isAutomatic && canManage && Model.Status == PaymentStatus.Issued)
+        {
+            <form asp-action="Complete" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Xác nhận đã thu tiền và hoàn thành phiếu? Hệ thống sẽ trừ công nợ của khách.">
+                <button class="btn btn-sm btn-success">Hoàn thành phiếu</button>
+            </form>
+        }
+        @if (!isAutomatic && canManage && Model.Status != PaymentStatus.Cancelled)
+        {
+            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Hủy phiếu thu này? Nếu phiếu đã hoàn thành, công nợ sẽ được hoàn lại.">
+                <button class="btn btn-sm btn-outline-danger">Hủy phiếu</button>
+            </form>
+        }
+        @if (!isAutomatic && canManage)
+        {
+            <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                  data-confirm="Xóa phiếu thu này? Công nợ liên quan sẽ được hoàn tác.">
+                <button class="btn btn-sm btn-outline-danger">Xóa</button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (Model.Status == PaymentStatus.Draft)
+{
+    <div class="alert alert-warning payment-detail-alert">Phiếu đang chờ xuất. Số tiền này chưa được trừ khỏi công nợ.</div>
+}
+else if (Model.Status == PaymentStatus.Issued)
+{
+    <div class="alert alert-info payment-detail-alert">Phiếu đã xuất nhưng chưa hoàn thành. Hãy xác nhận sau khi thực sự nhận tiền.</div>
+}
+else if (Model.Status == PaymentStatus.Cancelled)
+{
+    <div class="alert alert-danger payment-detail-alert">Phiếu thu đã bị hủy và không còn tính vào công nợ.</div>
+}
+
+<section class="card payment-detail-card">
+    <div class="payment-detail-heading">
+        <div>
+            <small>Khách hàng</small>
+            <a asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">@Model.Customer.Name</a>
+            @if (!string.IsNullOrWhiteSpace(Model.Customer.Phone)) { <span>@Model.Customer.Phone</span> }
+        </div>
+        <div class="payment-detail-amount">
+            <small>@(Model.Status == PaymentStatus.Completed ? "Số tiền đã thu" : "Số tiền trên phiếu")</small>
+            <strong>@Model.Amount.ToString("N0") <span>đ</span></strong>
+            <span class="payment-status @statusClass">@statusText</span>
+        </div>
+    </div>
+
+    <div class="payment-detail-grid">
+        <div><small>Ngày thu</small><strong>@Model.PaymentDate.ToString("dd/MM/yyyy HH:mm")</strong></div>
+        <div><small>Phương thức</small><strong>@methodName</strong></div>
+        <div>
+            <small>Đơn bán thanh toán</small>
+            @if (Model.Allocations.Count > 0)
+            {
+                <strong>@Model.Allocations.Count đơn đã chọn</strong>
+            }
+            else if (Model.Document is not null)
+            {
+                <a asp-controller="Sales" asp-action="Details" asp-route-id="@Model.DocumentId">Đơn ngày @Model.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</a>
+            }
+            else { <strong>Thanh toán chung cho khách</strong> }
+        </div>
+        <div><small>Người tạo</small><strong>@(string.IsNullOrWhiteSpace(Model.CreatedBy) ? "Hệ thống" : Model.CreatedBy)</strong></div>
+    </div>
+
+    @if (Model.Allocations.Count > 0)
+    {
+        <div class="payment-detail-allocations">
+            @foreach (var allocation in Model.Allocations.OrderByDescending(x => x.Document.DocumentDate).ThenByDescending(x => x.DocumentId))
+            {
+                <div>
+                    <a asp-controller="Sales" asp-action="Details" asp-route-id="@allocation.DocumentId">Đơn @allocation.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</a>
+                    <strong>@allocation.Amount.ToString("N0") đ</strong>
+                </div>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.Remark))
+    {
+        <div class="payment-detail-remark"><small>Ghi chú</small><span>@Model.Remark</span></div>
+    }
+    @if (Model.UpdatedAt.HasValue)
+    {
+        <div class="payment-detail-audit">Cập nhật lúc @Model.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") bởi @(string.IsNullOrWhiteSpace(Model.UpdatedBy) ? "Hệ thống" : Model.UpdatedBy)</div>
+    }
+    @if (isAutomatic)
+    {
+        <div class="payment-detail-notice">Khoản thanh toán này được ghi nhận khi hoàn thành đơn bán.</div>
+    }
+</section>

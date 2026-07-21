@@ -1,0 +1,115 @@
+@model BackorderViewModel
+@{
+    ViewData["Title"] = "Hàng đang thiếu";
+    var hasFilters = Model.WarehouseId.HasValue || !string.IsNullOrWhiteSpace(Model.Keyword);
+}
+
+<div class="management-context-toolbar backorder-toolbar">
+    <div>
+        <strong>Hàng bán trước đang chờ nhập</strong>
+        <span>Tồn âm sẽ tự được bù khi nhập đúng mặt hàng vào đúng kho.</span>
+    </div>
+    <a asp-controller="StockDocuments" asp-action="Edit" asp-route-type="Import" class="btn btn-primary">+ Tạo phiếu nhập kho</a>
+</div>
+
+<section class="backorder-overview" aria-label="Tổng quan hàng đang thiếu">
+    <article>
+        <span>Sản phẩm đang thiếu</span>
+        <strong>@Model.ProductCount</strong>
+        <small>@Model.Rows.Count mặt hàng theo kho</small>
+    </article>
+    <article class="is-danger">
+        <span>Tổng số lượng cần bù</span>
+        <strong>@Model.MissingQuantity.ToString("N0")</strong>
+        <small>Đã bán vượt tồn hiện có</small>
+    </article>
+    <article class="is-money">
+        <span>Giá vốn cần nhập ước tính</span>
+        <strong>@Model.EstimatedRestockCost.ToString("N0") <small>đ</small></strong>
+        <small>Tính theo giá vốn hiện tại</small>
+    </article>
+</section>
+
+<form method="get" class="filter-bar backorder-filter">
+    <div>
+        <label asp-for="WarehouseId" class="visually-hidden">Kho hàng</label>
+        <select asp-for="WarehouseId" class="form-select">
+            <option value="">Tất cả kho</option>
+            @foreach (var warehouse in Model.Warehouses)
+            {
+                <option value="@warehouse.Id">@warehouse.Name</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="Keyword" class="visually-hidden">Từ khóa</label>
+        <input asp-for="Keyword" class="form-control" placeholder="Tìm sản phẩm, phân loại hoặc kho..." />
+    </div>
+    <button class="btn btn-outline-primary">Lọc dữ liệu</button>
+    @if (hasFilters)
+    {
+        <a asp-action="Index" class="btn btn-light">Đặt lại</a>
+    }
+</form>
+
+<div class="card backorder-list-card">
+    <div class="management-list-toolbar management-list-toolbar-readonly">
+        <div class="management-list-hint">Ưu tiên nhập tối thiểu bằng số “Cần nhập” để đưa tồn về 0.</div>
+        <div class="management-list-summary"><span><strong>@Model.Rows.Count</strong> dòng đang thiếu</span></div>
+    </div>
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="backorder-empty">
+            <span>✓</span>
+            <div><strong>Không có hàng tồn âm</strong><small>Tất cả sản phẩm hiện đã được bù đủ tồn kho.</small></div>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 backorder-table">
+                <thead>
+                    <tr>
+                        <th>Sản phẩm / phân loại</th>
+                        <th>Kho đang thiếu</th>
+                        <th class="quantity">Tồn hiện tại</th>
+                        <th class="quantity">Cần nhập</th>
+                        <th>Bán gần nhất</th>
+                        <th class="money">Giá vốn dự kiến</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>
+                            <div class="backorder-product">
+                                <strong>@row.ProductName</strong>
+                                <small>@(string.IsNullOrWhiteSpace(row.Attributes) ? "Mặc định" : row.Attributes)</small>
+                            </div>
+                        </td>
+                        <td><span class="backorder-warehouse">@row.WarehouseName</span></td>
+                        <td class="quantity"><strong class="text-danger">@row.Quantity.ToString("N0")</strong></td>
+                        <td class="quantity">
+                            <strong>@row.MissingQuantity.ToString("N0")</strong>
+                            <small>@(row.ProductUnit ?? "đơn vị")</small>
+                        </td>
+                        <td class="text-nowrap">@(row.LastSaleAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                        <td class="money fw-semibold">@row.EstimatedRestockCost.ToString("N0") <span class="currency-suffix">đ</span></td>
+                        <td class="text-end">
+                            <a asp-controller="StockDocuments" asp-action="Edit"
+                               asp-route-type="Import"
+                               asp-route-warehouseId="@row.WarehouseId"
+                               asp-route-itemId="@row.ItemId"
+                               asp-route-quantity="@row.MissingQuantity"
+                               asp-route-costPrice="@row.CostPrice"
+                               class="btn btn-sm btn-primary text-nowrap">Nhập bù</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

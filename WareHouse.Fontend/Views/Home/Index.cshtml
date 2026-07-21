@@ -1,0 +1,151 @@
+@model StoreHomeViewModel
+@inject Microsoft.Extensions.Options.IOptions<StoreContactOptions> ContactOptions
+@{
+    ViewData["Title"] = "Xe đạp cho mọi hành trình | Xe đạp Tuệ Anh";
+    ViewData["MetaDescription"] = "Khám phá xe điện, xe đạp và xe đồ chơi được khách hàng lựa chọn nhiều tại Xe đạp Tuệ Anh.";
+    var homeCanonical = $"{Context.Request.Scheme}://{Context.Request.Host}/";
+    var contact = ContactOptions.Value;
+}
+
+@section Head {
+    <link rel="canonical" href="@homeCanonical" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Xe đạp Tuệ Anh" />
+    <meta property="og:title" content="Xe đạp cho mọi hành trình | Xe đạp Tuệ Anh" />
+    <meta property="og:description" content="Các mẫu xe nổi bật được khách hàng lựa chọn nhiều tại Xe đạp Tuệ Anh." />
+    <meta property="og:url" content="@homeCanonical" />
+    <meta property="og:image" content="@(homeCanonical + "themes/default/images/ic_logo_tueanh.png")" />
+    <meta name="twitter:card" content="summary_large_image" />
+}
+
+<section class="hero-section">
+    <div class="container-xl">
+        <div class="hero-panel hero-carousel-shell">
+            @if (Model.Banners.Count > 0)
+            {
+                <div id="storeHeroCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000" data-bs-wrap="true" data-bs-pause="hover" data-bs-touch="true">
+                    <div class="carousel-inner">
+                        @for (var bannerIndex = 0; bannerIndex < Model.Banners.Count; bannerIndex++)
+                        {
+                            var banner = Model.Banners[bannerIndex];
+                            <div class="carousel-item @(bannerIndex == 0 ? "active" : null)">
+                                <div class="row align-items-center g-4">
+                                    <div class="col-lg-5">
+                                        <div class="eyebrow"><span></span> Xe đạp Tuệ Anh</div>
+                                        @if (bannerIndex == 0)
+                                        {
+                                            <h1 class="hero-title">@banner.Title</h1>
+                                        }
+                                        else
+                                        {
+                                            <h2 class="hero-title">@banner.Title</h2>
+                                        }
+                                        <p class="hero-lead">Mẫu xe rõ ràng, tư vấn đúng nhu cầu và hỗ trợ tận tâm.</p>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <a class="btn btn-dark btn-lg rounded-pill px-4" href="@contact.TelephoneUrl">Gọi @contact.PhoneLabel</a>
+                                            @if (banner.HasLink)
+                                            {
+                                                <a class="btn btn-light btn-lg rounded-pill px-4" href="@banner.Url" target="_blank" rel="noopener noreferrer">Xem sản phẩm</a>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-7">
+                                        <div class="hero-product">
+                                            @if (banner.HasLink)
+                                            {
+                                                <a class="hero-banner-link" href="@banner.Url" target="_blank" rel="noopener noreferrer" aria-label="@banner.Title">
+                                                    <img class="hero-banner-image" src="@banner.ImageUrl" alt="@banner.Title" fetchpriority="@(bannerIndex == 0 ? "high" : "auto")" decoding="async" />
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <img class="hero-banner-image" src="@banner.ImageUrl" alt="@banner.Title" fetchpriority="@(bannerIndex == 0 ? "high" : "auto")" decoding="async" />
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @if (Model.Banners.Count > 1)
+                    {
+                        <div class="hero-carousel-controls">
+                            <button class="hero-slide-button" type="button" data-bs-target="#storeHeroCarousel" data-bs-slide="prev" aria-label="Banner trước"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" /></svg></button>
+                            <button class="hero-slide-button" type="button" data-bs-target="#storeHeroCarousel" data-bs-slide="next" aria-label="Banner tiếp theo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6" /></svg></button>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-5">
+                        <div class="eyebrow"><span></span> Xe đạp Tuệ Anh</div>
+                        <h1 class="hero-title">Chọn chiếc xe thật vừa với bạn.</h1>
+                        <p class="hero-lead">Mẫu xe rõ ràng, tư vấn đúng nhu cầu và hỗ trợ tận tâm.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-dark btn-lg rounded-pill px-4" href="@contact.TelephoneUrl">Gọi @contact.PhoneLabel</a>
+                        </div>
+                    </div>
+                    <div class="col-lg-7"><div class="hero-product"><div class="hero-bike-placeholder"><span>TA</span></div></div></div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="home-catalog" id="catalog">
+    <div class="container-xl">
+        <div class="home-catalog-toolbar">
+            <div>
+                <span class="eyebrow">Được lựa chọn nhiều</span>
+                <h2 class="section-title mt-2 mb-1">Sản phẩm nổi bật theo danh mục</h2>
+            </div>
+            <form class="catalog-search" method="get">
+                <input name="q" value="@Model.Query" placeholder="Tìm tên xe..." aria-label="Tìm tên xe" />
+                <button type="submit" aria-label="Tìm kiếm">⌕</button>
+            </form>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Query))
+        {
+            <section class="category-showcase">
+                <div class="category-showcase-heading">
+                    <div><span>Kết quả tìm kiếm</span><h2>“@Model.Query”</h2></div>
+                    <a href="/#catalog">Xóa tìm kiếm</a>
+                </div>
+                @if (Model.Products.Count == 0)
+                {
+                    <div class="empty-state"><h3>Chưa tìm thấy sản phẩm</h3><p>Thử tên xe hoặc từ khóa khác.</p></div>
+                }
+                else
+                {
+                    <div class="row g-4">
+                        @foreach (var product in Model.Products)
+                        {
+                            <div class="col-sm-6 col-xl-4"><partial name="_ProductCard" model="product" /></div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+        else
+        {
+            @foreach (var categorySection in Model.CategorySections)
+            {
+                <section class="category-showcase">
+                    <div class="category-showcase-heading">
+                        <div><span>Top sản phẩm</span><h2>@categorySection.Name</h2></div>
+                        <a href="@categorySection.Url">Xem tất cả <span>→</span></a>
+                    </div>
+                    <div class="row g-4">
+                        @foreach (var product in categorySection.Products)
+                        {
+                            <div class="col-sm-6 col-xl-4"><partial name="_ProductCard" model="product" /></div>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </div>
+</section>

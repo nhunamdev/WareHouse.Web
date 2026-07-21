@@ -1,0 +1,40 @@
+@model LoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Đăng nhập";
+}
+<section class="auth-card">
+    <div class="auth-brand">
+        <img class="auth-brand-logo" src="~/themes/default/images/ic_logo_tueanh.png" width="52" height="52" alt="Xe đạp Tuệ Anh" />
+        <div>
+            <strong>Xe đạp Tuệ Anh</strong>
+            <small>Quản lý cửa hàng</small>
+        </div>
+    </div>
+    <div class="auth-heading">
+        <h1>Đăng nhập hệ thống</h1>
+        <p>Sử dụng tài khoản được cấp để truy cập dữ liệu kho.</p>
+    </div>
+    <form method="post" asp-route-returnUrl="@ViewBag.ReturnUrl" class="auth-form">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <div>
+            <label asp-for="UserName" class="form-label"></label>
+            <input asp-for="UserName" class="form-control" autocomplete="username" autofocus />
+            <span asp-validation-for="UserName" class="text-danger"></span>
+        </div>
+        <div>
+            <label asp-for="Password" class="form-label"></label>
+            <input asp-for="Password" class="form-control" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+        <div class="form-check">
+            <input asp-for="RememberMe" class="form-check-input" />
+            <label asp-for="RememberMe" class="form-check-label"></label>
+        </div>
+        <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
+    </form>
+    <p class="auth-security-note">Tài khoản sai mật khẩu 5 lần sẽ bị khóa tạm thời 15 phút.</p>
+</section>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,12 @@
+@{
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string action) => string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase)
+        ? "is-active"
+        : string.Empty;
+}
+<nav class="report-navigation" aria-label="Chọn báo cáo">
+    <a asp-controller="Reports" asp-action="Inventory" class="@Active("Inventory")">Tồn kho</a>
+    <a asp-controller="Reports" asp-action="StockMovement" class="@Active("StockMovement")">Nhập · xuất · tồn</a>
+    <a asp-controller="Reports" asp-action="Sales" class="@Active("Sales")">Bán hàng</a>
+    <a asp-controller="Reports" asp-action="Debt" class="@Active("Debt")">Công nợ</a>
+</nav>

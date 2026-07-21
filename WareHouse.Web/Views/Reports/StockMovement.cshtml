@@ -1,0 +1,123 @@
+@model StockMovementReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo nhập - xuất - tồn";
+    var selectedWarehouse = Model.Warehouses.FirstOrDefault(x => x.Id == Model.WarehouseId);
+    var groups = Model.Rows
+        .GroupBy(x => x.ProductId)
+        .Select(group => new
+        {
+            ProductId = group.Key,
+            Name = group.First().ProductName,
+            Variants = group.ToList(),
+            Opening = group.Sum(x => x.OpeningQuantity),
+            Import = group.Sum(x => x.ImportQuantity),
+            Export = group.Sum(x => x.ExportQuantity),
+            TransferIn = group.Sum(x => x.TransferIn),
+            TransferOut = group.Sum(x => x.TransferOut),
+            Sale = group.Sum(x => x.SaleQuantity),
+            Return = group.Sum(x => x.ReturnQuantity),
+            Adjust = group.Sum(x => x.AdjustQuantity),
+            Closing = group.Sum(x => x.ClosingQuantity)
+        })
+        .OrderByDescending(x => x.Closing > 0)
+        .ThenByDescending(x => x.Closing)
+        .ThenBy(x => x.Name)
+        .ToList();
+    var opening = groups.Sum(x => x.Opening);
+    var imported = groups.Sum(x => x.Import);
+    var transferredIn = groups.Sum(x => x.TransferIn);
+    var returned = groups.Sum(x => x.Return);
+    var exported = groups.Sum(x => x.Export);
+    var sold = groups.Sum(x => x.Sale);
+    var transferredOut = groups.Sum(x => x.TransferOut);
+    var adjusted = groups.Sum(x => x.Adjust);
+    var closing = groups.Sum(x => x.Closing);
+    var inbound = imported + transferredIn + returned;
+    var outbound = exported + sold + transferredOut;
+    var net = closing - opening;
+}
+
+<div class="analytics-page report-page">
+    <partial name="_ReportNavigation" />
+
+    <header class="analytics-heading report-heading">
+        <div>
+            <span class="analytics-kicker">Dòng hàng trong kỳ</span>
+            <h1>Nhập · xuất · tồn</h1>
+            <p>@Model.FromDate.ToString("dd/MM/yyyy") – @Model.ToDate.ToString("dd/MM/yyyy") · @(selectedWarehouse?.Name ?? "Toàn bộ kho")</p>
+        </div>
+    </header>
+
+    <form method="get" class="analytics-filter report-filter movement-filter">
+        <label><span>Từ ngày</span><input asp-for="FromDate" type="date" class="form-control" /></label>
+        <label><span>Đến ngày</span><input asp-for="ToDate" type="date" class="form-control" /></label>
+        <label class="report-filter-search"><span>Kho hàng</span><select asp-for="WarehouseId" class="form-select"><option value="">Tất cả kho</option>@foreach (var warehouse in Model.Warehouses) { <option value="@warehouse.Id">@warehouse.Name</option> }</select></label>
+        <button class="btn btn-outline-primary" type="submit">Xem báo cáo</button>
+        <a asp-action="StockMovement" class="btn btn-light">Tháng này</a>
+    </form>
+
+    <section class="analytics-metric-grid report-metrics">
+        <article class="analytics-metric is-purple"><span class="analytics-metric-label">Tồn đầu kỳ</span><strong>@opening.ToString("N0")</strong><p>Trước ngày @Model.FromDate.ToString("dd/MM")</p></article>
+        <article class="analytics-metric is-green"><span class="analytics-metric-label">Hàng vào</span><strong>+@inbound.ToString("N0")</strong><p>Nhập @imported.ToString("N0") · Trả @returned.ToString("N0")</p></article>
+        <article class="analytics-metric is-red"><span class="analytics-metric-label">Hàng ra</span><strong>-@outbound.ToString("N0")</strong><p>Bán @sold.ToString("N0") · Xuất @exported.ToString("N0")</p></article>
+        <article class="analytics-metric is-blue"><span class="analytics-metric-label">Tồn cuối kỳ</span><strong>@closing.ToString("N0")</strong><p>Thay đổi <b class="@(net < 0 ? "text-danger" : "text-success")">@(net > 0 ? "+" : "")@net.ToString("N0")</b></p></article>
+    </section>
+
+    <section class="analytics-panel movement-visual-panel">
+        <header class="analytics-panel-header"><div><span>Dòng dịch chuyển</span><h2>Từ tồn đầu đến tồn cuối</h2></div><b class="report-count">@groups.Count sản phẩm</b></header>
+        <div class="movement-flow">
+            <div><small>Tồn đầu</small><strong>@opening.ToString("N0")</strong></div>
+            <span class="movement-flow-arrow is-in">+@inbound.ToString("N0") hàng vào</span>
+            <div class="is-center"><small>Sau điều chỉnh</small><strong>@(opening + inbound - outbound + adjusted).ToString("N0")</strong></div>
+            <span class="movement-flow-arrow is-out">-@outbound.ToString("N0") hàng ra</span>
+            <div><small>Tồn cuối</small><strong>@closing.ToString("N0")</strong></div>
+        </div>
+        @if (adjusted != 0)
+        {
+            <p class="movement-adjust-note">Điều chỉnh trong kỳ: <strong>@(adjusted > 0 ? "+" : "")@adjusted.ToString("N0")</strong></p>
+        }
+    </section>
+
+    <section class="analytics-panel report-list-panel">
+        <header class="analytics-panel-header"><div><span>Chi tiết</span><h2>Biến động theo sản phẩm</h2></div></header>
+        <div class="report-group-list movement-group-list">
+            @if (groups.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Không có dữ liệu trong kỳ</strong><span>Hãy thay đổi khoảng ngày hoặc kho cần xem.</span></div>
+            }
+            @foreach (var group in groups)
+            {
+                var groupIn = group.Import + group.TransferIn + group.Return;
+                var groupOut = group.Export + group.TransferOut + group.Sale;
+                <details class="report-product-group">
+                    <summary>
+                        <span class="report-expand-mark">+</span>
+                                <span class="report-product-name"><strong>@group.Name</strong><small>@group.Variants.Count phân loại</small></span>
+                        <span class="report-summary-number"><small>Tồn đầu</small><strong>@group.Opening.ToString("N0")</strong></span>
+                        <span class="report-summary-number is-positive"><small>Hàng vào</small><strong>+@groupIn.ToString("N0")</strong></span>
+                        <span class="report-summary-number is-negative"><small>Hàng ra</small><strong>-@groupOut.ToString("N0")</strong></span>
+                        <span class="report-summary-number"><small>Tồn cuối</small><strong class="@(group.Closing < 1 ? "text-danger" : "")">@group.Closing.ToString("N0")</strong></span>
+                    </summary>
+                    <div class="movement-variant-list">
+                        @foreach (var row in group.Variants.OrderByDescending(x => x.ClosingQuantity).ThenBy(x => x.Attributes))
+                        {
+                            <div class="movement-variant-row">
+                                <div class="movement-variant-name"><strong>@(string.IsNullOrWhiteSpace(row.Attributes) ? "Mặc định" : row.Attributes)</strong><small>Tồn đầu @row.OpeningQuantity.ToString("N0") → Tồn cuối @row.ClosingQuantity.ToString("N0")</small></div>
+                                <div class="movement-detail-chips">
+                                    @if (row.ImportQuantity != 0) { <span class="is-in"><small>Nhập</small><b>+@row.ImportQuantity.ToString("N0")</b></span> }
+                                    @if (row.ExportQuantity != 0) { <span class="is-out"><small>Xuất</small><b>-@row.ExportQuantity.ToString("N0")</b></span> }
+                                    @if (row.SaleQuantity != 0) { <span class="is-out"><small>Bán</small><b>-@row.SaleQuantity.ToString("N0")</b></span> }
+                                    @if (row.TransferIn != 0) { <span class="is-in"><small>Chuyển vào</small><b>+@row.TransferIn.ToString("N0")</b></span> }
+                                    @if (row.TransferOut != 0) { <span class="is-out"><small>Chuyển ra</small><b>-@row.TransferOut.ToString("N0")</b></span> }
+                                    @if (row.ReturnQuantity != 0) { <span class="is-in"><small>Trả</small><b>+@row.ReturnQuantity.ToString("N0")</b></span> }
+                                    @if (row.AdjustQuantity != 0) { <span><small>Điều chỉnh</small><b>@(row.AdjustQuantity > 0 ? "+" : "")@row.AdjustQuantity.ToString("N0")</b></span> }
+                                    @if (row.ImportQuantity == 0 && row.ExportQuantity == 0 && row.SaleQuantity == 0 && row.TransferIn == 0 && row.TransferOut == 0 && row.ReturnQuantity == 0 && row.AdjustQuantity == 0) { <span><small>Phát sinh</small><b>Không có</b></span> }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </details>
+            }
+        </div>
+    </section>
+</div>

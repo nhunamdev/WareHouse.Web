@@ -1,0 +1,409 @@
+@model DocumentEditViewModel
+@{
+    var needsFrom = Model.DocumentType is StockDocumentType.Export or StockDocumentType.Transfer or StockDocumentType.Sale;
+    var needsTo = Model.DocumentType is StockDocumentType.Import or StockDocumentType.Transfer or StockDocumentType.Return or StockDocumentType.Adjust;
+    var needsCustomer = Model.DocumentType is StockDocumentType.Sale or StockDocumentType.Return;
+    var isSale = Model.DocumentType == StockDocumentType.Sale;
+    var isImport = Model.DocumentType == StockDocumentType.Import;
+    var isStockOperation = Model.DocumentType is StockDocumentType.Import or StockDocumentType.Export or StockDocumentType.Transfer;
+    var isAdjust = Model.DocumentType == StockDocumentType.Adjust;
+    var isTransfer = Model.DocumentType == StockDocumentType.Transfer;
+    var requiresSourceWarehouse = needsFrom;
+    var requiresItemWarehouse = requiresSourceWarehouse || isImport;
+    var enforcesSourceStock = Model.DocumentType is StockDocumentType.Export or StockDocumentType.Transfer;
+    var usesCostPrice = Model.DocumentType is StockDocumentType.Import or StockDocumentType.Export
+        or StockDocumentType.Transfer or StockDocumentType.Adjust;
+    var actionsAtTop = ViewData["DocumentActionsAtTop"] as bool? == true;
+    var sourceWarehouseLabel = isTransfer ? "Kho nguồn" : "Kho xuất";
+    var itemWarehouseLabel = isImport ? "Kho nhập" : sourceWarehouseLabel;
+    var sourceWarehousePlaceholder = isTransfer ? "-- Chọn kho nguồn --" : "-- Chọn kho xuất --";
+    var itemWarehouseId = isImport ? Model.ToWarehouseId : Model.FromWarehouseId;
+    var imageBaseUrl = ((string?)ViewBag.ProductImageBaseUrl ?? "/data/images").TrimEnd('/');
+    var emptyItemLabel = requiresItemWarehouse && !itemWarehouseId.HasValue
+        ? $"-- Chọn {itemWarehouseLabel.ToLowerInvariant()} trước --"
+        : enforcesSourceStock
+        ? "-- Chọn phân loại đang có trong kho --"
+        : isSale ? "-- Chọn sản phẩm / phân loại --" : "-- Chọn phân loại --";
+    var submitLabel = Model.DocumentType switch
+    {
+        StockDocumentType.Import => "Lưu và nhập kho",
+        StockDocumentType.Export => "Lưu và xuất kho",
+        StockDocumentType.Transfer => "Lưu và chuyển kho",
+        StockDocumentType.Sale => Model.Id == 0 ? "Lưu đơn chờ xử lý" : "Lưu thay đổi",
+        StockDocumentType.Return => "Lưu phiếu trả hàng",
+        _ => "Lưu và cập nhật tồn"
+    };
+    var informationTitle = Model.DocumentType switch
+    {
+        StockDocumentType.Import => "Thông tin phiếu nhập kho",
+        StockDocumentType.Export => "Thông tin phiếu xuất kho",
+        StockDocumentType.Transfer => "Thông tin phiếu chuyển kho",
+        StockDocumentType.Return => "Thông tin phiếu trả hàng",
+        StockDocumentType.Adjust => "Thông tin phiếu điều chỉnh",
+        _ => "Thông tin đơn bán hàng"
+    };
+}
+
+<form method="post" id="documentForm" class="document-entry-form @(isImport ? "is-import-entry" : string.Empty)">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="DocumentType" type="hidden" />
+
+    <div class="card mb-3 document-entry-card document-entry-information">
+        <div class="card-header bg-white document-entry-card-heading">
+            <div><strong>@informationTitle</strong><small>@(isImport ? "Chọn kho nhận hàng trước khi thêm sản phẩm." : "Thông tin chung của phiếu.")</small></div>
+        </div>
+        <div class="card-body">
+            <div asp-validation-summary="All" class="alert alert-danger"></div>
+            <div class="row g-3">
+                @if (!isStockOperation && !string.IsNullOrEmpty(Model.DocumentNo))
+                {
+                    <div class="col-md-3">
+                        <label class="form-label">Số chứng từ</label>
+                        <input value="@Model.DocumentNo" class="form-control" disabled />
+                    </div>
+                }
+                @if (needsFrom)
+                {
+                    <div class="@(isSale ? "col-12 col-lg-4" : "col-md-3")">
+                        <label asp-for="FromWarehouseId" class="form-label">@sourceWarehouseLabel</label>
+                        <select asp-for="FromWarehouseId" class="form-select" id="fromWarehouse">
+                            <option value="">@sourceWarehousePlaceholder</option>
+                            @foreach (var warehouse in Model.Warehouses)
+                            {
+                                <option value="@warehouse.Id">@warehouse.Name</option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            @(isSale
+                                ? "Có thể bán vượt tồn. Phần thiếu sẽ được ghi âm tại kho này và tự bù khi nhập hàng."
+                                : "Chọn kho trước để tải đúng mặt hàng còn tồn trong kho.")
+                        </div>
+                    </div>
+                }
+                @if (needsTo)
+                {
+                    <div class="@(isImport ? "col-md-6" : "col-md-3")">
+                        <label asp-for="ToWarehouseId" class="form-label">@(isImport ? "Kho nhập" : isAdjust ? "Kho điều chỉnh" : "Kho đích")</label>
+                        <select asp-for="ToWarehouseId" class="form-select" id="toWarehouse">
+                            <option value="">-- Chọn kho --</option>
+                            @foreach (var warehouse in Model.Warehouses)
+                            {
+                                <option value="@warehouse.Id">@warehouse.Name</option>
+                            }
+                        </select>
+                        @if (isImport)
+                        {
+                            <div class="form-text">Tồn hiện tại của từng mặt hàng sẽ được tính theo kho này.</div>
+                        }
+                    </div>
+                }
+                @if (needsCustomer)
+                {
+                    <div class="@(isSale ? "col-12 col-lg-4" : "col-md-4")">
+                        <label asp-for="CustomerId" class="form-label"></label>
+                        <select asp-for="CustomerId" class="form-select" id="customerSelect">
+                            <option value="">-- Chọn khách hàng --</option>
+                            @foreach (var customer in Model.Customers)
+                            {
+                                <option value="@customer.Id" data-phone="@customer.Phone">@customer.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+                @if (isSale)
+                {
+                    <div class="col-12 col-lg-4">
+                        <label asp-for="CustomerPhone" class="form-label"></label>
+                        <input asp-for="CustomerPhone" class="form-control" type="tel" inputmode="tel"
+                               autocomplete="tel" placeholder="Nhập nếu cần" />
+                        <span asp-validation-for="CustomerPhone" class="text-danger"></span>
+                    </div>
+                }
+            </div>
+            @if (isSale)
+            {
+                <div class="mt-3">
+                    <label asp-for="Remark" class="form-label"></label>
+                    <textarea asp-for="Remark" rows="2" class="form-control"></textarea>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-3 document-entry-card document-entry-lines">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center document-entry-card-heading">
+            <div><strong>@(isImport ? "Hàng hóa nhập kho" : "Chi tiết hàng hóa")</strong><small>@(isImport ? "Mỗi dòng là một phân loại sản phẩm và giá nhập thực tế." : "Nhập các mặt hàng của phiếu.")</small></div>
+            <button type="button" id="addLine" class="btn btn-sm btn-outline-primary"
+                    disabled="@(requiresItemWarehouse && !itemWarehouseId.HasValue)">
+                + Thêm hàng
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table mb-0" id="detailTable">
+                <thead>
+                    <tr>
+                            <th style="min-width:320px">Sản phẩm / phân loại</th>
+                        <th class="quantity" style="width:150px">@(isImport ? "Tồn tại kho" : "Tồn trong kho")</th>
+                        <th style="width:150px">@(isImport ? "Số lượng nhập" : "Số lượng")</th>
+                        <th style="width:180px">@(isImport ? "Giá nhập" : "Đơn giá")</th>
+                        <th class="money" style="width:180px">Thành tiền</th>
+                        <th style="width:60px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @for (var i = 0; i < Model.Details.Count; i++)
+                {
+                    <tr class="detail-line">
+                        <td>
+                            <select asp-for="Details[i].ItemId" class="form-select item-select"
+                                    disabled="@(requiresItemWarehouse && !itemWarehouseId.HasValue)">
+                                <option value="0">@emptyItemLabel</option>
+                                @foreach (var item in Model.Items)
+                                {
+                                    <option value="@item.Id"
+                                            data-price="@item.Price.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-stock="@item.Stock.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-image="@(string.IsNullOrWhiteSpace(item.ImagePath) ? null : imageBaseUrl + "/" + item.ImagePath)">
+                                        @item.DisplayName
+                                    </option>
+                                }
+                            </select>
+                        </td>
+                        <td class="quantity stock-display">0</td>
+                        <td>
+                            <input asp-for="Details[i].Quantity"
+                                   value="@Model.Details[i].Quantity.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                                   type="number" step="1" min="@(isAdjust ? null : "1")"
+                                   class="form-control quantity-input" />
+                        </td>
+                        <td>
+                            <input type="text" inputmode="numeric" autocomplete="off"
+                                   value="@Model.Details[i].Price.ToString("N0")"
+                                   class="form-control money-input price-input" />
+                            <input asp-for="Details[i].Price" type="hidden" class="money-value price-value" />
+                        </td>
+                        <td class="money amount-display">0</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-line"
+                                    title="Xóa dòng" aria-label="Xóa dòng">×</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" class="text-end">Tổng tiền</th>
+                        <th class="money document-total" id="grandTotal">0</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    @if (!isSale)
+    {
+        <div class="card mb-3 document-entry-card document-entry-note">
+            <div class="card-body">
+                <label asp-for="Remark" class="form-label"></label>
+                <textarea asp-for="Remark" rows="2" class="form-control"
+                          placeholder="@(isImport ? "Nhà cung cấp, lô hàng hoặc ghi chú cần nhớ..." : null)"></textarea>
+                @if (Model.DocumentType == StockDocumentType.Export)
+                {
+                    <div class="form-text">Nên ghi rõ lý do xuất: sử dụng nội bộ, cấp phát, hàng mẫu, quà tặng hoặc lý do khác.</div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!actionsAtTop)
+    {
+        <div class="document-entry-footer-actions">
+            <button class="btn btn-primary">@submitLabel</button>
+            <a asp-action="Index" asp-route-type="@Model.DocumentType" class="btn btn-light">Hủy thao tác</a>
+        </div>
+    }
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('#documentForm');
+    const body = document.querySelector('#detailTable tbody');
+    const addLineButton = document.querySelector('#addLine');
+    const importDocument = @(isImport ? "true" : "false");
+    const warehouse = document.querySelector(importDocument ? '#toWarehouse' : '#fromWarehouse');
+    const customer = document.querySelector('#customerSelect');
+    const customerPhone = document.querySelector('#CustomerPhone');
+    const adjust = @(isAdjust ? "true" : "false");
+    const itemWarehouseRequired = @(requiresItemWarehouse ? "true" : "false");
+    const sourceStockEnforced = @(enforcesSourceStock ? "true" : "false");
+    const useCostPrice = @(usesCostPrice ? "true" : "false");
+    const sale = @(isSale ? "true" : "false");
+    const itemSearchUrl = '@Url.Action("Search", "Items")';
+    const itemImageBaseUrl = '@imageBaseUrl';
+    const chooseWarehouseLabel = '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode($"-- Chọn {itemWarehouseLabel.ToLowerInvariant()} trước --"))';
+    const chooseItemLabel = sale
+        ? '-- Chọn sản phẩm / phân loại --'
+        : '-- Chọn phân loại đang có trong kho --';
+
+    function updateTotal() {
+        let total = 0;
+        body.querySelectorAll('.detail-line').forEach(row => {
+            const quantity = Math.abs(Number(row.querySelector('.quantity-input').value || 0));
+            const price = Number(row.querySelector('.price-value').value || 0);
+            total += quantity * price;
+        });
+        document.querySelector('#grandTotal').textContent = total.toLocaleString('vi-VN');
+    }
+
+    function updateRow(row) {
+        const select = row.querySelector('.item-select');
+        const option = select.selectedOptions[0];
+        const stock = Number(option?.dataset.stock || 0);
+        const quantityInput = row.querySelector('.quantity-input');
+        const quantity = Number(quantityInput.value || 0);
+        const price = Number(row.querySelector('.price-value').value || 0);
+
+        const stockDisplay = row.querySelector('.stock-display');
+        stockDisplay.textContent = stock.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+        stockDisplay.classList.toggle('text-danger', stock < 1 || (sale && quantity > stock));
+        stockDisplay.title = sale && quantity > stock
+            ? `Đơn này sẽ làm tồn kho thiếu ${Math.max(0, quantity - stock).toLocaleString('vi-VN')}`
+            : '';
+        row.querySelector('.amount-display').textContent =
+            (Math.abs(quantity) * price).toLocaleString('vi-VN');
+
+        if (sourceStockEnforced && select.value !== '0') {
+            quantityInput.max = String(Math.floor(stock));
+            quantityInput.setCustomValidity(
+                quantity > stock ? `Số lượng xuất không được vượt tồn kho (${stock.toLocaleString('vi-VN')}).` : '');
+        } else {
+            quantityInput.removeAttribute('max');
+            quantityInput.setCustomValidity('');
+        }
+
+        updateTotal();
+    }
+
+    function resetRow(row) {
+        const select = row.querySelector('.item-select');
+        select.value = '0';
+        row.querySelector('.quantity-input').value = adjust ? 0 : 1;
+        row.querySelector('.price-input').value = '0';
+        row.querySelector('.price-value').value = '0';
+        window.WareHouseSelect2?.refresh(select);
+        updateRow(row);
+    }
+
+    function replaceItemOptions(select, items, emptyLabel) {
+        select.replaceChildren(new Option(emptyLabel, '0'));
+        items.forEach(item => {
+            const option = new Option(item.displayName, String(item.id));
+            option.dataset.price = String(Math.round(Number(item.price || 0)));
+            option.dataset.stock = String(Math.round(Number(item.stock || 0)));
+            if (item.imagePath) option.dataset.image = `${itemImageBaseUrl}/${item.imagePath}`;
+            select.add(option);
+        });
+    }
+
+    function clearSourceItems(emptyLabel, disabled) {
+        body.querySelectorAll('.detail-line').forEach(row => {
+            const select = row.querySelector('.item-select');
+            replaceItemOptions(select, [], emptyLabel);
+            select.disabled = disabled;
+            resetRow(row);
+        });
+        addLineButton.disabled = disabled;
+    }
+
+    function bind(row) {
+        row.querySelector('.item-select').addEventListener('change', event => {
+            const option = event.target.selectedOptions[0];
+            const priceInput = row.querySelector('.price-input');
+            priceInput.value = event.target.value === '0' ? '0' : (option?.dataset.price || '0');
+            priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+            updateRow(row);
+        });
+
+        row.querySelectorAll('.quantity-input,.price-input')
+            .forEach(input => input.addEventListener('input', () => updateRow(row)));
+
+        row.querySelector('.remove-line').addEventListener('click', () => {
+            if (body.children.length <= 1) return;
+            if (!window.confirm('Bạn có chắc muốn xóa dòng hàng này?')) return;
+            row.remove();
+            updateTotal();
+        });
+
+        updateRow(row);
+    }
+
+    body.querySelectorAll('.detail-line').forEach(bind);
+
+    customer?.addEventListener('change', () => {
+        if (!customerPhone) return;
+        customerPhone.value = customer.selectedOptions[0]?.dataset.phone || '';
+    });
+
+    addLineButton.addEventListener('click', () => {
+        const sourceRow = body.querySelector('.detail-line');
+        window.WareHouseSelect2?.destroy(sourceRow);
+        const row = sourceRow.cloneNode(true);
+        window.WareHouseSelect2?.init(sourceRow);
+        resetRow(row);
+        body.appendChild(row);
+        bind(row);
+        window.WareHouseSelect2?.init(row);
+    });
+
+    form.addEventListener('submit', event => {
+        body.querySelectorAll('.detail-line').forEach((row, index) => {
+            updateRow(row);
+            row.querySelector('.item-select').name = `Details[${index}].ItemId`;
+            row.querySelector('.quantity-input').name = `Details[${index}].Quantity`;
+            row.querySelector('.price-input').removeAttribute('name');
+            row.querySelector('.price-value').name = `Details[${index}].Price`;
+        });
+
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            form.reportValidity();
+        }
+    });
+
+    warehouse?.addEventListener('change', async () => {
+        if (itemWarehouseRequired && !warehouse.value) {
+            clearSourceItems(chooseWarehouseLabel, true);
+            return;
+        }
+
+        clearSourceItems('Đang tải Item...', true);
+
+        try {
+            const query = new URLSearchParams({
+                warehouseId: warehouse.value,
+                inStockOnly: String(sourceStockEnforced),
+                useCostPrice: String(useCostPrice)
+            });
+            const response = await fetch(`${itemSearchUrl}?${query}`);
+            if (!response.ok) throw new Error('Không thể tải danh sách Item.');
+            const items = await response.json();
+
+            body.querySelectorAll('.detail-line').forEach(row => {
+                const select = row.querySelector('.item-select');
+                replaceItemOptions(
+                    select,
+                    items,
+                    items.length > 0
+                        ? chooseItemLabel
+                        : sale ? '-- Chưa có sản phẩm đang kinh doanh --' : '-- Kho này chưa có phân loại còn hàng --');
+                select.disabled = items.length === 0;
+                resetRow(row);
+            });
+            addLineButton.disabled = items.length === 0;
+        } catch {
+            clearSourceItems('-- Không tải được Item, vui lòng thử lại --', true);
+        }
+    });
+});
+</script>

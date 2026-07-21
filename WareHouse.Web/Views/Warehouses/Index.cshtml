@@ -1,0 +1,53 @@
+@model PagedResult<Warehouse>
+@{ ViewData["Title"] = "Kho hàng"; }
+
+<form method="get" class="filter-bar row g-2">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-md-6">
+        <input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tìm tên hoặc địa chỉ kho..." />
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Tìm kiếm</button></div>
+</form>
+
+<div class="card">
+    <div class="management-list-toolbar">
+        <a asp-action="Edit" class="btn btn-primary">+ Thêm kho</a>
+        <div class="management-list-summary"><span><strong>@Model.TotalItems</strong> kho hàng</span></div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tên kho", Column = "name", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Địa chỉ", Column = "address", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-center text-muted py-5">Chưa có kho.</td></tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td class="fw-semibold">@item.Name</td>
+                        <td>@item.Address</td>
+                        <td><span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Đang dùng" : "Ngừng dùng")</span></td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline" data-confirm="Bạn có chắc muốn xóa kho này? Thao tác không thể hoàn tác.">
+                                <button class="btn btn-sm btn-outline-danger">Xóa</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination" model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+    </div>
+</div>

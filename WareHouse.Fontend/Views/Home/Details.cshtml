@@ -1,0 +1,125 @@
+@model ProductDetailViewModel
+@inject Microsoft.Extensions.Options.IOptions<StoreContactOptions> ContactOptions
+@{
+    var cover = Model.Images.FirstOrDefault();
+    var firstVariant = Model.Variants.FirstOrDefault();
+    var metaTitle = Model.Name;
+    var metaDescription = Model.ShortDescription ?? Model.Description ?? $"Xem giá, màu sắc và phân loại của {Model.Name} tại Xe đạp Tuệ Anh.";
+    var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    var canonicalUrl = baseUrl + Model.ProductUrl;
+    var absoluteCover = cover is null ? $"{baseUrl}/themes/default/images/ic_logo_tueanh.png" : (cover.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? cover : baseUrl + cover);
+    var variantJson = System.Text.Json.JsonSerializer.Serialize(Model.Variants, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+    var schema = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "Product",
+        ["name"] = Model.Name,
+        ["description"] = metaDescription,
+        ["image"] = Model.Images.Select(image => image.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? image : baseUrl + image).ToArray(),
+        ["sku"] = $"PRODUCT-{Model.Id}",
+        ["category"] = Model.Category,
+        ["brand"] = new Dictionary<string, object?> { ["@type"] = "Brand", ["name"] = "Xe đạp Tuệ Anh" },
+        ["offers"] = new Dictionary<string, object?>
+        {
+            ["@type"] = "AggregateOffer",
+            ["url"] = canonicalUrl,
+            ["priceCurrency"] = "VND",
+            ["lowPrice"] = Model.MinPrice,
+            ["highPrice"] = Model.MaxPrice,
+            ["offerCount"] = Model.Variants.Count,
+            ["availability"] = Model.TotalStock > 0 ? "https://schema.org/InStock" : "https://schema.org/PreOrder"
+        }
+    };
+    var schemaJson = System.Text.Json.JsonSerializer.Serialize(schema);
+    ViewData["Title"] = metaTitle;
+    ViewData["MetaDescription"] = metaDescription;
+    var contact = ContactOptions.Value;
+}
+
+@section Head {
+    <link rel="canonical" href="@canonicalUrl" />
+    @if (!string.IsNullOrWhiteSpace(Model.SeoKeywords)) { <meta name="keywords" content="@Model.SeoKeywords" /> }
+    <meta property="og:type" content="product" />
+    <meta property="og:site_name" content="Xe đạp Tuệ Anh" />
+    <meta property="og:title" content="@metaTitle" />
+    <meta property="og:description" content="@metaDescription" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta property="og:image" content="@absoluteCover" />
+    <meta property="product:price:amount" content="@Model.MinPrice.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+    <meta property="product:price:currency" content="VND" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@metaTitle" />
+    <meta name="twitter:description" content="@metaDescription" />
+    <meta name="twitter:image" content="@absoluteCover" />
+    <script type="application/ld+json">@Html.Raw(schemaJson)</script>
+}
+
+<section class="detail-section">
+    <div class="container-xl">
+        <nav class="breadcrumb-store mb-4"><a asp-action="Index">Trang chủ</a><span>/</span><a href="@StoreCategories.UrlFor(Model.Category)">@Model.Category</a><span>/</span><strong>@Model.Name</strong></nav>
+        <div class="row g-5 align-items-start">
+            <div class="col-lg-7">
+                <div class="detail-gallery">
+                    <div class="detail-cover" data-detail-cover>@if (cover is not null){<img src="@cover" alt="@Model.Name" />}else{<div class="product-placeholder"><span>TA</span></div>}</div>
+                    @if (Model.Images.Count > 1){<div class="detail-thumbs">@foreach (var image in Model.Images){<button type="button" class="detail-thumb @(image == cover ? "active" : "")" data-gallery-thumb="@image"><img src="@image" alt="Ảnh @Model.Name" /></button>}</div>}
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="detail-content">
+                    <span class="eyebrow">@(Model.Category ?? "Xe đạp Tuệ Anh")</span>
+                    <h1>@Model.Name</h1>
+                    <p class="detail-description">@metaDescription</p>
+                    <div class="detail-price" data-detail-price>@Model.PriceLabel</div>
+                    <div class="stock-summary"><span class="stock-dot"></span><span data-detail-stock>@(Model.TotalStock > 0 ? $"Còn {Model.TotalStock:N0} {Model.Unit?.ToLowerInvariant()} tại cửa hàng" : "Có thể đặt trước – liên hệ để được tư vấn")</span></div>
+                    <hr class="my-4" />
+                    @if (Model.AttributeGroups.Count > 0)
+                    {
+                        <div class="combination-picker" data-combination-picker>
+                            @foreach (var group in Model.AttributeGroups)
+                            {
+                                <div class="attribute-group" data-attribute-group="@group.Id"><div class="attribute-heading"><strong>@group.Name</strong><small data-selected-label>Chưa chọn</small></div><div class="attribute-choices">@foreach (var choice in group.Choices){<button type="button" class="attribute-choice @(choice.ColorHex is not null ? "is-color" : "")" data-group-id="@group.Id" data-value-id="@choice.Id" data-value-name="@choice.Name" aria-pressed="false">@if (choice.ColorHex is not null){<i style="--swatch:@choice.ColorHex"></i>}<span>@choice.Name</span><b>✓</b></button>}</div></div>
+                            }
+                        </div>
+                    }
+                    else if (firstVariant is not null) { <div class="single-variant"><span>Mẫu tiêu chuẩn</span><strong>@firstVariant.SalePrice.ToString("N0") đ</strong></div> }
+                    <p class="combination-message" data-combination-message>Chọn đủ phân loại để xem giá và tồn kho chính xác.</p>
+                    <div class="detail-contact-actions mt-4">
+                        <a class="btn btn-dark btn-lg rounded-pill" href="@contact.TelephoneUrl">Gọi @contact.PhoneLabel</a>
+                        <a class="btn btn-outline-success btn-lg rounded-pill" href="@contact.ZaloAddress" target="_blank" rel="noopener">Nhắn tin Zalo</a>
+                    </div>
+                    <div class="detail-trust"><span>✓ Kiểm tra xe trước khi giao</span><span>✓ Hỗ trợ sau mua</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<script type="application/json" id="productVariants">@Html.Raw(variantJson)</script>
+
+<section class="spec-section">
+    <div class="container-xl">
+        <div class="row g-5">
+            <div class="col-lg-7">
+                <span class="eyebrow">Thông tin sản phẩm</span>
+                <h2 class="section-title mt-2">Chi tiết @Model.Name</h2>
+                <div class="product-rich-content">
+                    @if (!string.IsNullOrWhiteSpace(Model.DetailContent))
+                    {
+                        @Html.Raw(Model.DetailContent)
+                    }
+                    else
+                    {
+                        <p>@(Model.ShortDescription ?? "Liên hệ Xe đạp Tuệ Anh để được tư vấn chi tiết về mẫu xe này.")</p>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="spec-list">
+                    <div><span>Danh mục</span><strong>@(Model.Category ?? "—")</strong></div>
+                    <div><span>Đơn vị</span><strong>@(Model.Unit ?? "—")</strong></div>
+                    <div><span>Phân loại</span><strong>@Model.Variants.Count lựa chọn</strong></div>
+                    <div><span>Tình trạng</span><strong>@(Model.TotalStock > 0 ? "Còn hàng" : "Nhận đặt trước")</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

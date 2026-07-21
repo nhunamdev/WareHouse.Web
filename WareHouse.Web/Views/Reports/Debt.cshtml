@@ -1,0 +1,95 @@
+@model DebtReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo công nợ";
+    var totalDebt = Model.Rows.Sum(x => x.CurrentDebt);
+    var totalOutstanding = Model.Rows.Sum(x => x.OutstandingSaleAmount);
+    var totalPayments = Model.Rows.Sum(x => x.PaymentInPeriod);
+    var outstandingOrders = Model.Rows.Sum(x => x.OutstandingSaleCount);
+    var debtors = Model.Rows.Count(x => x.CurrentDebt > 0);
+    var maxDebt = Model.Rows.Count == 0 ? 0 : Model.Rows.Max(x => x.CurrentDebt);
+    var hasFilters = Model.FromDate.HasValue || Model.ToDate.HasValue;
+    var periodLabel = !hasFilters
+        ? "Tất cả thời gian"
+        : $"{Model.FromDate?.ToString("dd/MM/yyyy") ?? "Đầu kỳ"} – {Model.ToDate?.ToString("dd/MM/yyyy") ?? "Hiện tại"}";
+}
+
+<div class="analytics-page report-page">
+    <partial name="_ReportNavigation" />
+
+    <header class="analytics-heading report-heading">
+        <div>
+            <span class="analytics-kicker">Theo dõi phải thu</span>
+            <h1>Công nợ khách hàng</h1>
+            <p>@periodLabel</p>
+        </div>
+        <a asp-controller="Payments" asp-action="Index" class="btn btn-primary">Quản lý khách đang nợ</a>
+    </header>
+
+    <form method="get" class="analytics-filter report-filter debt-filter">
+        <label><span>Từ ngày</span><input asp-for="FromDate" type="date" class="form-control" /></label>
+        <label><span>Đến ngày</span><input asp-for="ToDate" type="date" class="form-control" /></label>
+        <button class="btn btn-outline-primary" type="submit">Xem thanh toán</button>
+        @if (hasFilters) { <a asp-action="Debt" class="btn btn-light">Tất cả thời gian</a> }
+    </form>
+
+    <section class="analytics-metric-grid report-metrics">
+        <article class="analytics-metric @(totalDebt > 0 ? "is-red" : "is-green")"><span class="analytics-metric-label">Công nợ hiện tại</span><strong>@totalDebt.ToString("N0") <small>đ</small></strong><p>@debtors khách hàng đang nợ</p></article>
+        <article class="analytics-metric is-purple"><span class="analytics-metric-label">Đơn bán còn nợ</span><strong>@outstandingOrders</strong><p>Giá trị @totalOutstanding.ToString("N0") đ</p></article>
+        <article class="analytics-metric is-green"><span class="analytics-metric-label">Đã thu trong kỳ</span><strong>@totalPayments.ToString("N0") <small>đ</small></strong><p>@periodLabel</p></article>
+        <article class="analytics-metric is-blue"><span class="analytics-metric-label">Khách hàng theo dõi</span><strong>@Model.Rows.Count</strong><p>Gồm khách đang hoạt động hoặc còn nợ</p></article>
+    </section>
+
+    <section class="analytics-report-grid debt-insight-grid">
+        <article class="analytics-panel">
+            <header class="analytics-panel-header"><div><span>Mức độ cần theo dõi</span><h2>Khách hàng nợ nhiều</h2></div></header>
+            @if (debtors == 0)
+            {
+                <div class="analytics-empty"><strong>Không còn công nợ</strong><span>Tất cả khách hàng đã thanh toán đủ.</span></div>
+            }
+            else
+            {
+                <div class="analytics-ranking is-compact">
+                    @foreach (var row in Model.Rows.Where(x => x.CurrentDebt > 0).OrderByDescending(x => x.CurrentDebt).Take(6))
+                    {
+                        var width = maxDebt <= 0 ? 0 : Math.Max(5, row.CurrentDebt / maxDebt * 100);
+                        var widthText = width.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                        <div class="analytics-rank-row is-debt">
+                            <div class="analytics-rank-main"><div><strong>@row.CustomerName</strong><span>@row.OutstandingSaleCount đơn còn nợ</span></div><div class="analytics-bar"><i style="width:@widthText%"></i></div></div>
+                            <b>@row.CurrentDebt.ToString("N0") đ</b>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+        <article class="analytics-panel report-note-panel">
+            <header class="analytics-panel-header"><div><span>Diễn giải</span><h2>Số liệu công nợ</h2></div></header>
+            <div class="report-note-list">
+                <div><span class="report-note-dot is-red"></span><p><strong>Công nợ hiện tại</strong><small>Số tiền khách còn phải thanh toán ở thời điểm xem.</small></p></div>
+                <div><span class="report-note-dot is-purple"></span><p><strong>Nợ theo đơn</strong><small>Tổng phần chưa thanh toán của các đơn bán hoàn tất.</small></p></div>
+                <div><span class="report-note-dot is-green"></span><p><strong>Đã thu trong kỳ</strong><small>Các phiếu thu nằm trong khoảng ngày đang chọn.</small></p></div>
+            </div>
+        </article>
+    </section>
+
+    <section class="analytics-panel report-list-panel">
+        <header class="analytics-panel-header"><div><span>Chi tiết</span><h2>Công nợ theo khách hàng</h2></div><b class="report-count">@debtors khách đang nợ</b></header>
+        <div class="debt-report-list">
+            <div class="debt-report-head" aria-hidden="true"><span>Khách hàng</span><span>Đơn còn nợ</span><span>Nợ theo đơn</span><span>Đã thu trong kỳ</span><span>Công nợ hiện tại</span><span></span></div>
+            @if (Model.Rows.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Không có dữ liệu công nợ</strong><span>Danh sách sẽ xuất hiện khi có khách hàng hoặc đơn bán.</span></div>
+            }
+            @foreach (var row in Model.Rows)
+            {
+                <div class="debt-report-row">
+                    <span><strong>@row.CustomerName</strong></span>
+                    <span><strong>@row.OutstandingSaleCount</strong><small>đơn bán</small></span>
+                    <span><strong>@row.OutstandingSaleAmount.ToString("N0") đ</strong></span>
+                    <span class="text-success"><strong>@row.PaymentInPeriod.ToString("N0") đ</strong></span>
+                    <span class="@(row.CurrentDebt > 0 ? "text-danger" : "text-success")"><strong>@row.CurrentDebt.ToString("N0") đ</strong></span>
+                    <a asp-controller="Customers" asp-action="Details" asp-route-id="@row.CustomerId" class="btn btn-sm btn-outline-primary">Xem</a>
+                </div>
+            }
+        </div>
+    </section>
+</div>

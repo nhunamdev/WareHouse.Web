@@ -1,0 +1,78 @@
+@model ProductCardViewModel
+@{
+    var colors = Model.Variants
+        .Where(x => x.ColorValueId.HasValue)
+        .GroupBy(x => x.ColorValueId!.Value)
+        .Select(x => x.First())
+        .ToList();
+    var sizes = Model.Variants
+        .Where(x => x.SizeValueId.HasValue)
+        .GroupBy(x => x.SizeValueId!.Value)
+        .Select(x => x.First())
+        .ToList();
+    var variantsJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Variants,
+        new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+}
+<article class="product-card h-100" data-product-card>
+    <a class="product-media" href="@Model.ProductUrl">
+        @if (Model.ImageUrl is not null)
+        {
+            <img src="@Model.ImageUrl" data-product-image data-default-image="@Model.ImageUrl" alt="@Model.Name" loading="lazy" />
+        }
+        else
+        {
+            <div class="product-placeholder"><span>TA</span></div>
+        }
+        <span class="product-badge">@(Model.IsInStock ? "Còn hàng" : "Đặt trước")</span>
+    </a>
+    <div class="product-info">
+        <p class="product-category">@Model.Category</p>
+        <h3><a href="@Model.ProductUrl">@Model.Name</a></h3>
+
+        @if (colors.Count > 0 || sizes.Count > 0)
+        {
+            <div class="product-variant-preview">
+                @if (colors.Count > 0)
+                {
+                    <div class="product-option-row">
+                        <span class="product-option-name">Màu</span>
+                        <div class="product-colors" aria-label="Các màu của @Model.Name">
+                            @foreach (var color in colors)
+                            {
+                                <button type="button"
+                                        class="color-dot"
+                                        style="--swatch:@color.ColorHex"
+                                        title="@color.ColorName"
+                                        aria-label="Màu @color.ColorName"
+                                        data-card-color="@color.ColorValueId">
+                                    <span></span>
+                                </button>
+                            }
+                        </div>
+                        <small data-color-label></small>
+                    </div>
+                }
+                @if (sizes.Count > 0)
+                {
+                    <div class="product-option-row">
+                        <span class="product-option-name">Size</span>
+                        <div class="product-sizes" aria-label="Các size của @Model.Name">
+                            @foreach (var size in sizes)
+                            {
+                                <button type="button" class="size-chip" data-card-size="@size.SizeValueId">@size.SizeName</button>
+                            }
+                        </div>
+                        <small data-size-label></small>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="product-bottom">
+            <div><small data-price-caption>Giá từ</small><div class="product-price" data-product-price>@Model.PriceLabel <i>đ</i></div></div>
+            <a class="view-product" href="@Model.ProductUrl">Xem xe <span>→</span></a>
+        </div>
+    </div>
+    <script type="application/json" data-card-variants>@Html.Raw(variantsJson)</script>
+</article>

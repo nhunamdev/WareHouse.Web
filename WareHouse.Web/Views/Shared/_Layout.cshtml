@@ -1,0 +1,257 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+    var currentDocumentType = Context.Request.Query["type"].ToString();
+
+    string Active(string controller, string? action = null) =>
+        currentController.Equals(controller, StringComparison.OrdinalIgnoreCase) &&
+        (action is null || currentAction.Equals(action, StringComparison.OrdinalIgnoreCase)) ? "active" : string.Empty;
+
+    string StockActive(string type) =>
+        currentController.Equals("StockDocuments", StringComparison.OrdinalIgnoreCase) &&
+        currentDocumentType.Equals(type, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+    var canManage = isAdmin || User.IsInRole(AppRoles.Manager);
+    var canSell = canManage || User.IsInRole(AppRoles.Sale);
+    var catalogOpen = canManage && currentController is ("Products" or "Attributes" or "Warehouses" or "Banners");
+    var warehouseOpen = canManage && currentController is ("Inventory" or "Backorders" or "StockDocuments");
+    var businessOpen = canSell && currentController is ("Sales" or "Payments" or "Customers");
+    var reportsOpen = canManage && currentController == "Reports";
+    var systemOpen = isAdmin && currentController is ("UserAdmin" or "AuditLogs");
+    var homeController = canManage ? "Home" : "Sales";
+    var userName = User.Identity?.Name ?? "User";
+    var initial = userName[..1].ToUpperInvariant();
+    var roleName = isAdmin
+        ? AppRoles.DisplayName(AppRoles.Admin)
+        : User.IsInRole(AppRoles.Manager)
+            ? AppRoles.DisplayName(AppRoles.Manager)
+            : AppRoles.DisplayName(AppRoles.Sale);
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f6fb" id="themeColorMeta" />
+    <title>@ViewData["Title"] - Xe đạp Tuệ Anh</title>
+    <link rel="icon" type="image/png" href="~/themes/default/images/ic_logo_tueanh.png" />
+    <partial name="_PreferenceBootstrap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/select2/css/select2.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="app-body">
+    <a class="skip-link" href="#mainContent">Đi đến nội dung chính</a>
+    <div class="app-shell">
+        <aside class="app-sidebar" id="appSidebar" aria-label="Điều hướng chính">
+            <div class="sidebar-brand">
+                <a class="brand-link" asp-controller="@homeController" asp-action="Index" aria-label="Xe đạp Tuệ Anh - Trang chủ">
+                    <img class="brand-logo-image" src="~/themes/default/images/ic_logo_tueanh.png" width="46" height="46" alt="Xe đạp Tuệ Anh" />
+                    <span class="brand-copy"><strong>Xe đạp Tuệ Anh</strong><small>Inventory Suite</small></span>
+                </a>
+                <button type="button" class="sidebar-collapse-button" id="sidebarCollapseButton" aria-label="Thu gọn menu" title="Thu gọn menu">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+                </button>
+            </div>
+
+            <nav class="sidebar-navigation">
+                <div class="sidebar-nav-label">Không gian làm việc</div>
+                @if (canManage)
+                {
+                    <a class="sidebar-link @Active("Home", "Index")" asp-controller="Home" asp-action="Index" title="Dashboard">
+                        <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></svg></span>
+                        <span class="sidebar-menu-text">Dashboard</span>
+                    </a>
+                }
+
+                <a class="sidebar-link @Active("Guide")" asp-controller="Guide" asp-action="Index" title="Hướng dẫn sử dụng">
+                    <span class="sidebar-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 5.5A3.5 3.5 0 017.5 2H12v17H7.5A3.5 3.5 0 004 22V5.5z" />
+                            <path d="M20 5.5A3.5 3.5 0 0016.5 2H12v17h4.5A3.5 3.5 0 0120 22V5.5z" />
+                        </svg>
+                    </span>
+                    <span class="sidebar-menu-text">Hướng dẫn sử dụng</span>
+                </a>
+
+                @if (canManage)
+                {
+                <div class="sidebar-group">
+                    <button class="sidebar-group-toggle @(catalogOpen ? "section-active" : "")" type="button" data-bs-toggle="collapse" data-bs-target="#catalogMenu" aria-expanded="@(catalogOpen ? "true" : "false")" aria-controls="catalogMenu" title="Quản lý danh mục">
+                        <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5L12 3l8 4.5-8 4.5-8-4.5z" /><path d="M4 12l8 4.5 8-4.5M4 16.5L12 21l8-4.5" /></svg></span>
+                        <span class="sidebar-menu-text">Quản lý danh mục</span>
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                    </button>
+                    <div class="collapse @(catalogOpen ? "show" : "")" id="catalogMenu">
+                        <div class="sidebar-submenu">
+                            <a class="sidebar-sublink @Active("Products")" asp-controller="Products" asp-action="Index">Sản phẩm</a>
+                            <a class="sidebar-sublink @Active("Attributes")" asp-controller="Attributes" asp-action="Index">Thuộc tính</a>
+                            <a class="sidebar-sublink @Active("Warehouses")" asp-controller="Warehouses" asp-action="Index">Kho hàng</a>
+                            <a class="sidebar-sublink @Active("Banners")" asp-controller="Banners" asp-action="Index">Banner website</a>
+                        </div>
+                    </div>
+                </div>
+                }
+
+                @if (canManage)
+                {
+                <div class="sidebar-group">
+                    <button class="sidebar-group-toggle @(warehouseOpen ? "section-active" : "")" type="button" data-bs-toggle="collapse" data-bs-target="#warehouseMenu" aria-expanded="@(warehouseOpen ? "true" : "false")" aria-controls="warehouseMenu" title="Quản lý kho">
+                        <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-7 9 7" /><path d="M5 9v12h14V9M9 21v-7h6v7" /></svg></span>
+                        <span class="sidebar-menu-text">Quản lý kho</span>
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                    </button>
+                    <div class="collapse @(warehouseOpen ? "show" : "")" id="warehouseMenu">
+                        <div class="sidebar-submenu">
+                            <a class="sidebar-sublink @Active("Inventory")" asp-controller="Inventory" asp-action="Index">Tồn kho</a>
+                            <a class="sidebar-sublink @Active("Backorders")" asp-controller="Backorders" asp-action="Index">Hàng đang thiếu</a>
+                            <a class="sidebar-sublink @StockActive("Import")" asp-controller="StockDocuments" asp-action="Index" asp-route-type="Import">Nhập kho</a>
+                            <a class="sidebar-sublink @StockActive("Export")" asp-controller="StockDocuments" asp-action="Index" asp-route-type="Export">Xuất kho</a>
+                            <a class="sidebar-sublink @StockActive("Transfer")" asp-controller="StockDocuments" asp-action="Index" asp-route-type="Transfer">Chuyển kho</a>
+                        </div>
+                    </div>
+                </div>
+                }
+
+                @if (canSell)
+                {
+                <div class="sidebar-group">
+                    <button class="sidebar-group-toggle @(businessOpen ? "section-active" : "")" type="button" data-bs-toggle="collapse" data-bs-target="#businessMenu" aria-expanded="@(businessOpen ? "true" : "false")" aria-controls="businessMenu" title="Kinh doanh">
+                        <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 10.5a2 2 0 002 1.5h7.8a2 2 0 001.9-1.4L21 8H7" /><circle cx="10" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" /></svg></span>
+                        <span class="sidebar-menu-text">Kinh doanh</span>
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                    </button>
+                    <div class="collapse @(businessOpen ? "show" : "")" id="businessMenu">
+                        <div class="sidebar-submenu">
+                            <a class="sidebar-sublink @Active("Customers")" asp-controller="Customers" asp-action="Index">Khách hàng / Đại lý</a>
+                            <a class="sidebar-sublink @Active("Sales")" asp-controller="Sales" asp-action="Index">Bán hàng</a>
+                            <a class="sidebar-sublink @Active("Payments")" asp-controller="Payments" asp-action="Index">Thu công nợ</a>
+                        </div>
+                    </div>
+                </div>
+                }
+
+                @if (canManage)
+                {
+                <div class="sidebar-group">
+                    <button class="sidebar-group-toggle @(reportsOpen ? "section-active" : "")" type="button" data-bs-toggle="collapse" data-bs-target="#reportsMenu" aria-expanded="@(reportsOpen ? "true" : "false")" aria-controls="reportsMenu" title="Báo cáo">
+                        <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg></span>
+                        <span class="sidebar-menu-text">Báo cáo</span>
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                    </button>
+                    <div class="collapse @(reportsOpen ? "show" : "")" id="reportsMenu">
+                        <div class="sidebar-submenu">
+                            <a class="sidebar-sublink @Active("Reports", "Inventory")" asp-controller="Reports" asp-action="Inventory">Báo cáo tồn kho</a>
+                            <a class="sidebar-sublink @Active("Reports", "StockMovement")" asp-controller="Reports" asp-action="StockMovement">Nhập - xuất - tồn</a>
+                            <a class="sidebar-sublink @Active("Reports", "Sales")" asp-controller="Reports" asp-action="Sales">Bán hàng</a>
+                            <a class="sidebar-sublink @Active("Reports", "Debt")" asp-controller="Reports" asp-action="Debt">Công nợ</a>
+                        </div>
+                    </div>
+                </div>
+                }
+
+                @if (isAdmin)
+                {
+                    <div class="sidebar-group">
+                        <button class="sidebar-group-toggle @(systemOpen ? "section-active" : "")" type="button" data-bs-toggle="collapse" data-bs-target="#systemMenu" aria-expanded="@(systemOpen ? "true" : "false")" aria-controls="systemMenu" title="Hệ thống">
+                            <span class="sidebar-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg></span>
+                            <span class="sidebar-menu-text">Hệ thống</span>
+                            <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                        </button>
+                        <div class="collapse @(systemOpen ? "show" : "")" id="systemMenu">
+                            <div class="sidebar-submenu">
+                                <a class="sidebar-sublink @Active("UserAdmin")" asp-controller="UserAdmin" asp-action="Index">Tài khoản truy cập</a>
+                                <a class="sidebar-sublink @Active("AuditLogs")" asp-controller="AuditLogs" asp-action="Index">Nhật ký hoạt động</a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="connection-dot" aria-hidden="true"></span>
+                <span class="sidebar-menu-text"><strong>SQL Server</strong><small>Kết nối dữ liệu</small></span>
+            </div>
+        </aside>
+
+        <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Đóng menu"></button>
+
+        <div class="app-main">
+            <header class="app-topbar">
+                <div class="topbar-left">
+                    <button type="button" class="mobile-menu-button" id="mobileSidebarButton" aria-label="Mở menu" aria-controls="appSidebar" aria-expanded="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                    </button>
+                    <div class="topbar-heading">
+                        <span>Hệ thống quản lý kho</span>
+                        <strong>@ViewData["Title"]</strong>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="topbar-preferences" aria-label="Tùy chỉnh giao diện">
+                        <button type="button" class="topbar-action-button theme-toggle" id="themeToggle"
+                                aria-label="Chuyển sang giao diện tối" title="Chuyển sang giao diện tối">
+                            <svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+                            </svg>
+                            <svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20.5 15.4A8.5 8.5 0 018.6 3.5 8.5 8.5 0 1020.5 15.4z" />
+                            </svg>
+                        </button>
+
+                        <div class="font-size-control">
+                            <button type="button" class="topbar-action-button font-size-toggle" id="fontSizeToggle"
+                                    aria-label="Điều chỉnh cỡ chữ" title="Điều chỉnh cỡ chữ"
+                                    aria-expanded="false" aria-controls="fontSizePanel">
+                                <span class="font-size-icon" aria-hidden="true">A</span>
+                            </button>
+                            <div class="font-size-panel" id="fontSizePanel" hidden>
+                                <div class="font-size-panel-heading">
+                                    <strong>Cỡ chữ</strong>
+                                    <span id="fontSizeCurrent">Mặc định</span>
+                                </div>
+                                <div class="font-size-buttons" role="group" aria-label="Chọn cỡ chữ">
+                                    <button type="button" data-font-action="decrease" aria-label="Giảm cỡ chữ">A−</button>
+                                    <button type="button" data-font-action="reset" aria-label="Đặt lại cỡ chữ">100%</button>
+                                    <button type="button" data-font-action="increase" aria-label="Tăng cỡ chữ">A+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="topbar-profile" aria-label="Người dùng hiện tại">
+                        <span class="profile-avatar">@initial</span>
+                        <span class="profile-copy"><strong>@userName</strong><small>@roleName</small></span>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="topbar-logout-form">
+                            <button type="submit" class="topbar-logout-button" title="Đăng xuất" aria-label="Đăng xuất">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 3h5a2 2 0 012 2v14a2 2 0 01-2 2h-5" /></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <main class="app-content" id="mainContent" tabindex="-1">
+                <partial name="_Alerts" />
+                @RenderBody()
+            </main>
+
+            <footer class="app-footer">
+                <span>Xe đạp Tuệ Anh &copy; @DateTime.Now.Year</span>
+                <span>Quản lý kho linh hoạt, dữ liệu tập trung</span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/select2/js/select2.min.js" asp-append-version="true"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,63 @@
+@model PagedResult<Customer>
+@{ ViewData["Title"] = "Khách hàng"; }
+
+<form method="get" class="filter-bar row g-2">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-md-6">
+        <input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tìm tên hoặc số điện thoại..." />
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Tìm kiếm</button></div>
+</form>
+
+<div class="card">
+    <div class="management-list-toolbar">
+        <a asp-action="Edit" class="btn btn-primary">+ Thêm khách hàng</a>
+        <div class="management-list-summary"><span><strong>@Model.TotalItems</strong> khách hàng</span></div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tên", Column = "name", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Loại", Column = "type", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Điện thoại", Column = "phone", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Địa chỉ", Column = "address", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Công nợ", Column = "debt", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-5">Chưa có khách hàng phù hợp.</td></tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td class="fw-semibold"><a asp-action="Details" asp-route-id="@item.Id">@item.Name</a></td>
+                        <td>@(item.CustomerType == CustomerType.Dealer ? "Đại lý" : "Khách lẻ")</td>
+                        <td>@item.Phone</td>
+                        <td>@item.Address</td>
+                        <td class="money fw-semibold @(item.Debt > 0 ? "text-danger" : "")">@item.Debt.ToString("N0")</td>
+                        <td><span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Đang dùng" : "Ngừng dùng")</span></td>
+                        <td class="text-end text-nowrap">
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-success">Công nợ</a>
+                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                            @if (User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager))
+                            {
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline" data-confirm="Bạn có chắc muốn xóa khách hàng này?">
+                                    <button class="btn btn-sm btn-outline-danger">Xóa</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination" model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+    </div>
+</div>

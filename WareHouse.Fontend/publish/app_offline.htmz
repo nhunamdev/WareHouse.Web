@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hệ thống đang cập nhật</title>
+    <style>
+        body {
+            display: grid;
+            min-height: 100vh;
+            margin: 0;
+            place-items: center;
+            color: #172033;
+            background: #f4f6fb;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        main {
+            max-width: 520px;
+            padding: 40px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e5e9f2;
+            border-radius: 18px;
+            box-shadow: 0 14px 38px rgba(30, 41, 59, .09);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 26px;
+        }
+
+        p {
+            margin: 0;
+            color: #697386;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Hệ thống đang được cập nhật</h1>
+        <p>Vui lòng quay lại sau ít phút. Cảm ơn bạn đã chờ đợi.</p>
+    </main>
+</body>
+</html>

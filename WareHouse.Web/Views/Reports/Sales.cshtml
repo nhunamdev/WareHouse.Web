@@ -1,0 +1,83 @@
+@model SalesReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo bán hàng";
+    var sales = Model.Sales;
+    var hasFilters = ViewBag.FromDate is not null || ViewBag.ToDate is not null ||
+                     !string.IsNullOrWhiteSpace((string?)ViewBag.Keyword);
+    var collectionRate = Model.TotalAmount <= 0 ? 0 : Math.Min(100, Model.PaidAmount / Model.TotalAmount * 100);
+    var collectionRateText = collectionRate.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<div class="analytics-page report-page">
+    <partial name="_ReportNavigation" />
+
+    <header class="analytics-heading report-heading">
+        <div>
+            <span class="analytics-kicker">Kết quả kinh doanh</span>
+            <h1>Bán hàng</h1>
+            <p>Doanh thu, số lượng bán và tình hình thanh toán</p>
+        </div>
+        <a asp-controller="Sales" asp-action="Edit" class="btn btn-primary">+ Tạo đơn bán</a>
+    </header>
+
+    <form method="get" class="analytics-filter report-filter">
+        <label><span>Từ ngày</span><input type="date" name="fromDate" value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></label>
+        <label><span>Đến ngày</span><input type="date" name="toDate" value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></label>
+        <label class="report-filter-search"><span>Tìm nhanh</span><input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Sản phẩm, khách hàng, kho hoặc người bán..." /></label>
+        <button class="btn btn-outline-primary" type="submit">Lọc dữ liệu</button>
+        @if (hasFilters) { <a asp-action="Sales" class="btn btn-light">Đặt lại</a> }
+    </form>
+
+    <section class="analytics-metric-grid report-metrics">
+        <article class="analytics-metric is-purple"><span class="analytics-metric-label">Doanh thu</span><strong>@Model.TotalAmount.ToString("N0") <small>đ</small></strong><p>@Model.OrderCount đơn bán hoàn tất</p></article>
+        <article class="analytics-metric is-blue"><span class="analytics-metric-label">Số lượng đã bán</span><strong>@Model.Quantity.ToString("N0")</strong><p>Tổng trên tất cả sản phẩm</p></article>
+        <article class="analytics-metric is-green"><span class="analytics-metric-label">Đã thu</span><strong>@Model.PaidAmount.ToString("N0") <small>đ</small></strong><p>@collectionRate.ToString("0.#")% doanh thu</p></article>
+        <article class="analytics-metric @(Model.DebtAmount > 0 ? "is-red" : "is-green")"><span class="analytics-metric-label">Còn nợ</span><strong>@Model.DebtAmount.ToString("N0") <small>đ</small></strong><p>@(Model.DebtAmount > 0 ? "Cần tiếp tục thu" : "Đã thanh toán đủ")</p></article>
+    </section>
+
+    <section class="analytics-panel sales-collection-panel">
+        <div class="sales-collection-copy"><span>Tiến độ thu tiền</span><strong>@collectionRate.ToString("0.#")%</strong><small>@Model.PaidAmount.ToString("N0") đ trên @Model.TotalAmount.ToString("N0") đ doanh thu</small></div>
+        <div class="sales-collection-bar"><i style="width:@collectionRateText%"></i></div>
+        <div class="sales-collection-legend"><span><i class="is-paid"></i>Đã thu</span><span><i class="is-debt"></i>Còn nợ</span></div>
+    </section>
+
+    <section class="analytics-panel report-list-panel sales-report-list">
+        <header class="analytics-panel-header">
+            <div><span>Chi tiết</span><h2>Các lượt mua trong kỳ</h2></div>
+            <b class="report-count">@Model.OrderCount lượt mua</b>
+        </header>
+        <div class="report-sale-list">
+            <div class="report-sale-head" aria-hidden="true">
+                <span>Khách hàng</span><span>Ngày / Người bán</span><span>Số lượng</span><span>Tổng tiền</span><span>Thanh toán</span><span></span>
+            </div>
+            @if (sales.Items.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Không có dữ liệu bán hàng</strong><span>Hãy thay đổi khoảng ngày hoặc từ khóa tìm kiếm.</span></div>
+            }
+            @foreach (var sale in sales.Items)
+            {
+                var lines = sale.Details.OrderBy(x => x.Item.Product.Name).ThenBy(x => x.ItemId).ToList();
+                <details class="report-sale-row">
+                    <summary>
+                        <span class="report-sale-customer"><i class="report-expand-mark">+</i><b>@(sale.Customer?.Name ?? "Khách lẻ")</b><small>@(string.IsNullOrWhiteSpace(sale.CustomerPhone) ? sale.Customer?.Phone ?? sale.FromWarehouse?.Name ?? "Bán trực tiếp" : sale.CustomerPhone)</small></span>
+                        <span><b>@sale.DocumentDate.ToString("dd/MM/yyyy HH:mm")</b><small>@(string.IsNullOrWhiteSpace(sale.CreatedBy) ? "Hệ thống" : sale.CreatedBy)</small></span>
+                        <span class="report-sale-quantity"><b>@lines.Sum(x => x.Quantity).ToString("N0")</b><small>@lines.Count sản phẩm</small></span>
+                        <span class="report-sale-money"><b>@sale.TotalAmount.ToString("N0") đ</b><small>@(sale.FromWarehouse?.Name ?? "—")</small></span>
+                        <span class="report-sale-payment @(sale.DebtAmount > 0 ? "has-debt" : "is-paid")"><b>@(sale.DebtAmount > 0 ? $"Nợ {sale.DebtAmount:N0} đ" : "Đã thanh toán")</b><small>Đã thu @sale.PaidAmount.ToString("N0") đ</small></span>
+                        <a asp-controller="Sales" asp-action="Details" asp-route-id="@sale.Id" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">Xem</a>
+                    </summary>
+                    <div class="report-sale-products">
+                        @foreach (var line in lines)
+                        {
+                            var attributes = WareHouseServices.FormatAttributes(line.Item.ItemAttributes);
+                            <div><span><strong>@line.Item.Product.Name</strong><small>@(string.IsNullOrWhiteSpace(attributes) ? "Mặc định" : attributes)</small></span><span>@line.Quantity.ToString("N0") × @line.Price.ToString("N0")</span><b>@line.Amount.ToString("N0") đ</b></div>
+                        }
+                    </div>
+                </details>
+            }
+        </div>
+        <div class="card-footer bg-white report-pagination">
+            <partial name="_Pagination" model='new PaginationViewModel { Page = sales.Page, TotalPages = sales.TotalPages, Action = "Sales", RouteValues = new() { ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"), ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"), ["keyword"] = (string?)ViewBag.Keyword } }' />
+        </div>
+    </section>
+</div>

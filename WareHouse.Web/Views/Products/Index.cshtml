@@ -1,0 +1,202 @@
+@model PagedResult<Product>
+@{
+    ViewData["Title"] = "Sản phẩm";
+    var imageBaseUrl = ((string?)ViewBag.ImageBaseUrl ?? "/data/images").TrimEnd('/');
+}
+
+<form method="get" class="filter-bar row g-2">
+    <input type="hidden" name="sort" value="@ViewBag.Sort" />
+    <input type="hidden" name="direction" value="@ViewBag.Direction" />
+    <div class="col-md-6">
+        <input name="keyword"
+               value="@ViewBag.Keyword"
+               class="form-control"
+                   placeholder="Tìm tên, nhóm hàng hoặc thuộc tính phân loại..." />
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Tìm kiếm</button></div>
+</form>
+
+<div class="card product-list-card">
+    <div class="management-list-toolbar">
+        <a asp-action="Edit" class="btn btn-primary">+ Thêm sản phẩm</a>
+        <div class="management-list-summary">
+            <span><strong>@ViewBag.ProductCount</strong> sản phẩm</span>
+            <span><strong>@ViewBag.ActiveItemCount</strong> mặt hàng</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 product-list-table">
+            <thead>
+                <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tên sản phẩm", Column = "name", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Nhóm hàng", Column = "category", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đơn vị", Column = "unit", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Phân loại", Column = "variants", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "quantity" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tổng tồn", Column = "stock", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "quantity" }' />
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-5">Chưa có sản phẩm phù hợp.</td></tr>
+            }
+            @foreach (var product in Model.Items)
+            {
+                var detailId = $"product-variants-{product.Id}";
+                var productTotalStock = product.Items.Sum(x => x.WarehouseStocks.Sum(stock => stock.Quantity));
+                <tr class="product-summary-row" data-product-summary="@product.Id">
+                    <td>
+                        <div class="product-list-name-cell">
+                            @{
+                                var coverImage = product.Images
+                                    .OrderByDescending(x => x.IsPrimary)
+                                    .ThenBy(x => x.SortOrder)
+                                    .ThenBy(x => x.Id)
+                                    .FirstOrDefault();
+                            }
+                            @if (coverImage is not null)
+                            {
+                                <img class="product-list-thumbnail"
+                                     src="@(imageBaseUrl + "/" + coverImage.RelativePath)"
+                                     alt="Ảnh @product.Name"
+                                     loading="lazy" />
+                            }
+                            else
+                            {
+                                <span class="product-list-thumbnail is-empty" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l4-4 4 4 2-2 6 6M15 9h.01" /></svg>
+                                </span>
+                            }
+                            <button type="button"
+                                    class="product-expand-button"
+                                    data-product-toggle
+                                    aria-expanded="false"
+                                    aria-controls="@detailId">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                                <span>@product.Name</span>
+                            </button>
+                        </div>
+                    </td>
+                    <td>@(product.Category ?? "—")</td>
+                    <td>@(product.Unit ?? "—")</td>
+                    <td class="quantity">@product.Items.Count</td>
+                    <td class="quantity fw-semibold @(productTotalStock < 1 ? "text-danger" : "text-success")">
+                        @productTotalStock.ToString("N0")
+                    </td>
+                    <td>
+                        <span class="badge @(product.IsActive ? "bg-success" : "bg-secondary")">
+                            @(product.IsActive ? "Đang dùng" : "Ngừng dùng")
+                        </span>
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a asp-action="Edit" asp-route-id="@product.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        <form asp-action="Delete"
+                              asp-route-id="@product.Id"
+                              method="post"
+                              class="d-inline"
+                              data-confirm="Bạn có chắc muốn xóa sản phẩm này?">
+                            <button class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="@detailId" class="product-variant-detail-row" hidden>
+                    <td colspan="7">
+                        <div class="product-list-variant-panel">
+                            @if (product.Items.Count == 0)
+                            {
+                                <div class="product-list-variant-empty">
+                                        Sản phẩm chưa có phân loại. Mở “Sửa” để thêm phân loại đầu tiên.
+                                </div>
+                            }
+                            else
+                            {
+                                var variants = product.Items.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToList();
+                                <div class="product-list-variant-scroll">
+                                    <table class="product-list-variant-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Thuộc tính</th>
+                                                <th>Giá vốn</th>
+                                                <th>Giá bán</th>
+                                                <th>Tồn</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach (var variant in variants)
+                                        {
+                                            var attributes = variant.ItemAttributes
+                                                .OrderBy(x => x.AttributeValue.Attribute.Name)
+                                                .ThenBy(x => x.AttributeValue.SortOrder)
+                                                .ToList();
+                                            var totalStock = variant.WarehouseStocks.Sum(x => x.Quantity);
+                                            <tr>
+                                                <td>
+                                                    <div class="product-list-variant-attributes">
+                                                        <span class="product-list-variant-state @(variant.IsActive ? "is-active" : "is-inactive")"
+                                                              title="@(variant.IsActive ? "Đang dùng" : "Ngừng dùng")"
+                                                              aria-label="@(variant.IsActive ? "Đang dùng" : "Ngừng dùng")"></span>
+                                                        @if (attributes.Count == 0)
+                                                        {
+                                                            <strong>Mặc định</strong>
+                                                        }
+                                                        @foreach (var attributeEntry in attributes)
+                                                        {
+                                                            <span class="product-list-variant-attribute">
+                                                                <small>@attributeEntry.AttributeValue.Attribute.Name</small>
+                                                                @attributeEntry.AttributeValue.Value
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td class="money">@variant.CostPrice.ToString("N0")</td>
+                                                <td class="money fw-semibold">@variant.SalePrice.ToString("N0")</td>
+                                                <td class="quantity fw-semibold @(totalStock < 1 ? "text-danger" : "text-success")">@totalStock.ToString("N0")</td>
+                                            </tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        <partial name="_Pagination"
+                 model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            "use strict";
+
+            document.querySelectorAll("[data-product-toggle]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const detailRow = document.getElementById(button.getAttribute("aria-controls"));
+                    if (!detailRow) return;
+
+                    const isExpanded = button.getAttribute("aria-expanded") === "true";
+                    if (!isExpanded) {
+                        document.querySelectorAll('[data-product-toggle][aria-expanded="true"]').forEach((openButton) => {
+                            if (openButton === button) return;
+                            const openRow = document.getElementById(openButton.getAttribute("aria-controls"));
+                            openButton.setAttribute("aria-expanded", "false");
+                            if (openRow) openRow.hidden = true;
+                            openButton.closest("[data-product-summary]")?.classList.remove("is-expanded");
+                        });
+                    }
+                    button.setAttribute("aria-expanded", String(!isExpanded));
+                    detailRow.hidden = isExpanded;
+                    button.closest("[data-product-summary]")?.classList.toggle("is-expanded", !isExpanded);
+                });
+            });
+        })();
+    </script>
+}

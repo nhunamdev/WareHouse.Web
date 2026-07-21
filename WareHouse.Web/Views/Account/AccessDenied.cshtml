@@ -1,0 +1,17 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Không có quyền truy cập";
+}
+<section class="auth-card text-center">
+    <span class="auth-denied-icon">!</span>
+    <div class="auth-heading">
+        <h1>Không có quyền truy cập</h1>
+        <p>Tài khoản hiện tại không được phép sử dụng chức năng này.</p>
+    </div>
+    <div class="d-grid gap-2">
+        <a asp-controller="Sales" asp-action="Index" class="btn btn-primary">Về trang bán hàng</a>
+        <form asp-controller="Account" asp-action="Logout" method="post">
+            <button class="btn btn-light w-100">Đăng xuất</button>
+        </form>
+    </div>
+</section>

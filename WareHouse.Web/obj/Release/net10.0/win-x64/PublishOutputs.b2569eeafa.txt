@@ -1,0 +1,6 @@
+D:\Name_Manager\WareHouse.Web\.run\publish\appsettings.Development.json
+D:\Name_Manager\WareHouse.Web\.run\publish\appsettings.json
+D:\Name_Manager\WareHouse.Web\.run\publish\WareHouse.Web.pdb
+D:\Name_Manager\WareHouse.Web\.run\publish\Microsoft.Data.SqlClient.SNI.dll
+D:\Name_Manager\WareHouse.Web\.run\publish\WareHouse.Data.pdb
+D:\Name_Manager\WareHouse.Web\.run\publish\WareHouse.Web.exe

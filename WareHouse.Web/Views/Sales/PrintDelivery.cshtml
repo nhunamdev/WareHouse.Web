@@ -1,0 +1,76 @@
+@model StockDocument
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Phiếu giao @Model.DocumentNo</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .sheet { max-width: 850px; margin: 20px auto; padding: 30px; }
+        .invoice-logo { width: 88px; height: 88px; object-fit: contain; }
+        @@media print {
+            .d-print-none { display: none; }
+            .sheet { margin: 0; max-width: none; padding: 0; }
+            tr { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <div class="text-end d-print-none mb-3">
+        <button class="btn btn-primary" onclick="window.print()">In phiếu giao</button>
+    </div>
+    <h1 class="h3 text-center">PHIẾU GIAO HÀNG</h1>
+    <div class="text-center"><img class="invoice-logo" src="~/themes/default/images/ic_logo_tueanh.png" alt="Xe đạp Tuệ Anh" /><div class="fw-bold">XE ĐẠP TUỆ ANH</div></div>
+    <div class="row my-4">
+        <div class="col-6">
+            <strong>Số:</strong> @Model.DocumentNo<br />
+            <strong>Ngày:</strong> @Model.DocumentDate.ToString("dd/MM/yyyy HH:mm")<br />
+            <strong>Kho:</strong> @Model.FromWarehouse?.Name
+        </div>
+        <div class="col-6">
+            <strong>Khách hàng:</strong> @Model.Customer?.Name<br />
+            <strong>Điện thoại:</strong> @(string.IsNullOrWhiteSpace(Model.CustomerPhone) ? Model.Customer?.Phone : Model.CustomerPhone)<br />
+            <strong>Địa chỉ:</strong> @Model.Customer?.Address
+        </div>
+    </div>
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>Sản phẩm / Thuộc tính</th>
+            <th class="text-end">Số lượng</th>
+        </tr>
+        </thead>
+        <tbody>
+        @for (var i = 0; i < Model.Details.Count; i++)
+        {
+            var line = Model.Details.ElementAt(i);
+            var attrs = WareHouseServices.FormatAttributes(line.Item.ItemAttributes);
+            <tr>
+                <td>@(i + 1)</td>
+                <td>
+                    @line.Item.Product.Name
+                    @if (!string.IsNullOrEmpty(attrs))
+                    {
+                        <small class="d-block">@attrs</small>
+                    }
+                </td>
+                <td class="text-end">@line.Quantity.ToString("N0")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    <div class="row text-center mt-5">
+        <div class="col-4"><strong>Người lập</strong></div>
+        <div class="col-4"><strong>Người giao</strong></div>
+        <div class="col-4"><strong>Người nhận</strong></div>
+    </div>
+</div>
+</body>
+</html>

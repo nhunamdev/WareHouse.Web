@@ -1,0 +1,2 @@
+Unhandled exception. System.IO.FileLoadException: Could not load file or assembly 'D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Debug\net10.0\WareHouse.Web.dll'. An Application Control policy has blocked this file. (0x800711C7)
+File name: 'D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Debug\net10.0\WareHouse.Web.dll'

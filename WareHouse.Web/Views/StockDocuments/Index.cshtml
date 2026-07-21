@@ -1,0 +1,266 @@
+@model PagedResult<StockDocument>
+@{
+    var type = (StockDocumentType)ViewBag.Type;
+    var isStockOperation = type is StockDocumentType.Import or StockDocumentType.Export or StockDocumentType.Transfer;
+    var isImport = type == StockDocumentType.Import;
+    var isExport = type == StockDocumentType.Export;
+    var isTransfer = type == StockDocumentType.Transfer;
+    string title = type switch
+    {
+        StockDocumentType.Import => "Nhập kho",
+        StockDocumentType.Export => "Xuất kho",
+        StockDocumentType.Transfer => "Chuyển kho",
+        StockDocumentType.Return => "Phiếu trả hàng",
+        _ => "Phiếu điều chỉnh"
+    };
+    var showFromWarehouse = type is StockDocumentType.Export or StockDocumentType.Transfer;
+    var showToWarehouse = type is StockDocumentType.Import or StockDocumentType.Transfer or StockDocumentType.Return or StockDocumentType.Adjust;
+    var showCustomer = type == StockDocumentType.Return;
+    var columnCount = 5 + (showFromWarehouse ? 1 : 0) + (showToWarehouse ? 1 : 0) + (showCustomer ? 1 : 0);
+    var keywordPlaceholder = showCustomer ? "Số chứng từ, khách hàng..." : "Số chứng từ...";
+    var hasOperationFilters = ViewBag.FromDate is not null || ViewBag.ToDate is not null || !string.IsNullOrWhiteSpace((string?)ViewBag.Keyword);
+    var operationDescription = type switch
+    {
+        StockDocumentType.Import => "Theo dõi sản phẩm vừa nhập, thời gian, người thực hiện và số lượng",
+        StockDocumentType.Export => "Theo dõi hàng đã xuất, kho xuất, người thực hiện, số lượng và mục đích sử dụng",
+        _ => "Theo dõi hàng được chuyển giữa các kho, thời gian, người thực hiện và số lượng"
+    };
+    var operationAction = type switch
+    {
+        StockDocumentType.Import => "+ Tạo phiếu nhập kho",
+        StockDocumentType.Export => "+ Tạo phiếu xuất kho",
+        _ => "+ Tạo phiếu chuyển kho"
+    };
+    var operationListTitle = type switch
+    {
+        StockDocumentType.Import => "Hàng nhập gần đây",
+        StockDocumentType.Export => "Hàng xuất gần đây",
+        _ => "Hàng chuyển kho gần đây"
+    };
+    var operationListDescription = type switch
+    {
+        StockDocumentType.Import => "Mỗi dòng thể hiện một sản phẩm hoặc phân loại đã được cộng vào kho.",
+        StockDocumentType.Export => "Mỗi dòng thể hiện một sản phẩm hoặc phân loại đã được lấy khỏi kho.",
+        _ => "Mỗi dòng thể hiện một sản phẩm hoặc phân loại đã chuyển từ kho nguồn sang kho đích."
+    };
+    var operationPersonLabel = type switch
+    {
+        StockDocumentType.Import => "Người nhập",
+        StockDocumentType.Export => "Người xuất",
+        _ => "Người chuyển"
+    };
+    var operationDateLabel = type switch
+    {
+        StockDocumentType.Import => "Ngày nhập",
+        StockDocumentType.Export => "Ngày xuất",
+        _ => "Ngày chuyển"
+    };
+    var operationCountLabel = type switch
+    {
+        StockDocumentType.Import => "phiếu nhập",
+        StockDocumentType.Export => "phiếu xuất",
+        _ => "phiếu chuyển"
+    };
+    var createDocumentLabel = type switch
+    {
+        StockDocumentType.Import => "+ Tạo phiếu nhập kho",
+        StockDocumentType.Export => "+ Tạo phiếu xuất kho",
+        StockDocumentType.Transfer => "+ Tạo phiếu chuyển kho",
+        StockDocumentType.Return => "+ Tạo phiếu trả hàng",
+        _ => "+ Tạo phiếu điều chỉnh"
+    };
+    var quantityClass = isImport ? "text-success" : isExport ? "text-danger" : "text-primary";
+    var showOperationValue = !isTransfer;
+    var showOperationRemark = !isImport;
+    var operationColumnCount = 5 + (showFromWarehouse ? 1 : 0) + (showToWarehouse ? 1 : 0) +
+                               (showOperationValue ? 2 : 0) + (showOperationRemark ? 1 : 0);
+    ViewData["Title"] = title;
+}
+
+@if (isStockOperation)
+{
+    <form method="get" class="filter-bar row g-2 inventory-filter">
+        <input type="hidden" name="type" value="@type" />
+        <input type="hidden" name="sort" value="@ViewBag.Sort" />
+        <input type="hidden" name="direction" value="@ViewBag.Direction" />
+        <div class="col-lg-2 col-md-4">
+            <label class="visually-hidden" for="operationFromDate">Từ ngày</label>
+            <input id="operationFromDate" type="date" name="fromDate"
+                   value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))"
+                   class="form-control" title="Từ ngày" />
+        </div>
+        <div class="col-lg-2 col-md-4">
+            <label class="visually-hidden" for="operationToDate">Đến ngày</label>
+            <input id="operationToDate" type="date" name="toDate"
+                   value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))"
+                   class="form-control" title="Đến ngày" />
+        </div>
+        <div class="col-lg-5 col-md-4">
+            <label class="visually-hidden" for="operationKeyword">Tìm kiếm</label>
+            <input id="operationKeyword" name="keyword" value="@ViewBag.Keyword" class="form-control"
+                   placeholder="Tìm sản phẩm, phân loại, kho, người thực hiện hoặc ghi chú..." />
+        </div>
+        <div class="col-lg-3 inventory-filter-actions">
+            <button class="btn btn-outline-primary">Lọc dữ liệu</button>
+            @if (hasOperationFilters)
+            {
+                <a asp-action="Index" asp-route-type="@type" class="btn btn-light">Đặt lại</a>
+            }
+        </div>
+    </form>
+
+    <div class="card import-history-card">
+        <div class="management-list-toolbar">
+            <a asp-action="Edit" asp-route-type="@type" class="btn btn-primary">@operationAction</a>
+            <div class="management-list-summary">
+                <span><strong>@Model.TotalItems</strong> @operationCountLabel</span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 import-history-table @(isTransfer ? "stock-transfer-history-table" : string.Empty)">
+                <thead>
+                    <tr>
+                    <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Sản phẩm / phân loại", Column = "product", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                        @if (showFromWarehouse) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Kho nguồn", Column = "fromWarehouse", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        @if (showToWarehouse) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Kho đích", Column = "toWarehouse", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = operationDateLabel, Column = "date", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = operationPersonLabel, Column = "person", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Số lượng", Column = "quantity", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "quantity" }' />
+                        @if (showOperationRemark) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Ghi chú / lý do", Column = "remark", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        @if (showOperationValue)
+                        {
+                            <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Đơn giá", Column = "price", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                            <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Thành tiền", Column = "amount", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                        }
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="@operationColumnCount" class="text-center text-muted py-5">
+                            Chưa có dữ liệu @title.ToLowerInvariant() phù hợp.
+                        </td>
+                    </tr>
+                }
+                @foreach (var operation in Model.Items)
+                {
+                    var lines = operation.Details.OrderBy(x => x.Item.Product.Name).ThenBy(x => x.ItemId).ToList();
+                    @foreach (var line in lines)
+                    {
+                        var attributes = WareHouseServices.FormatAttributes(line.Item.ItemAttributes);
+                        <tr class="import-history-row">
+                            <td>
+                                <div class="import-product-cell">
+                                    <strong>@line.Item.Product.Name</strong>
+                                    @if (!string.IsNullOrWhiteSpace(attributes))
+                                    {
+                                        <small>@attributes</small>
+                                    }
+                                </div>
+                            </td>
+                            @if (showFromWarehouse) { <td>@(operation.FromWarehouse?.Name ?? "—")</td> }
+                            @if (showToWarehouse) { <td>@(operation.ToWarehouse?.Name ?? "—")</td> }
+                            <td class="text-nowrap">@operation.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <span class="import-user">@(string.IsNullOrWhiteSpace(operation.CreatedBy) ? "Hệ thống" : operation.CreatedBy)</span>
+                            </td>
+                            <td class="quantity fw-bold @quantityClass">@line.Quantity.ToString("N0")</td>
+                            @if (showOperationRemark)
+                            {
+                                <td>
+                                    <span class="stock-operation-remark" title="@operation.Remark">
+                                        @(string.IsNullOrWhiteSpace(operation.Remark) ? "—" : operation.Remark)
+                                    </span>
+                                </td>
+                            }
+                            @if (showOperationValue)
+                            {
+                                <td class="money">@line.Price.ToString("N0") <span class="currency-suffix">đ</span></td>
+                                <td class="money fw-semibold">@line.Amount.ToString("N0") <span class="currency-suffix">đ</span></td>
+                            }
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@operation.Id" class="btn btn-sm btn-outline-primary">Xem</a>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            <partial name="_Pagination"
+                     model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["type"] = type.ToString(), ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"), ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"), ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+        </div>
+    </div>
+}
+else
+{
+    <form method="get" class="filter-bar row g-2">
+        <input type="hidden" name="type" value="@type" />
+        <input type="hidden" name="sort" value="@ViewBag.Sort" />
+        <input type="hidden" name="direction" value="@ViewBag.Direction" />
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">Tất cả trạng thái</option>
+                @foreach (var status in Enum.GetValues<DocumentStatus>())
+                {
+                    <option value="@status" selected="@(ViewBag.Status == status)">@status</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2"><input type="date" name="fromDate" value="@(((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></div>
+        <div class="col-md-2"><input type="date" name="toDate" value="@(((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"))" class="form-control" /></div>
+        <div class="col-md-4"><input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="@keywordPlaceholder" /></div>
+        <div class="col-md-2"><button class="btn btn-outline-primary w-100">Lọc</button></div>
+    </form>
+
+    <div class="card">
+        <div class="management-list-toolbar">
+            <a asp-action="Edit" asp-route-type="@type" class="btn btn-primary">@createDocumentLabel</a>
+            <div class="management-list-summary">
+                <span><strong>@Model.TotalItems</strong> phiếu</span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Số chứng từ", Column = "number", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Ngày", Column = "date", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' />
+                        @if (showFromWarehouse) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Kho nguồn", Column = "fromWarehouse", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        @if (showToWarehouse) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Kho đích", Column = "toWarehouse", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        @if (showCustomer) { <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Khách hàng", Column = "customer", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /> }
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Tổng tiền", Column = "total", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction, CssClass = "money" }' />
+                        <partial name="_SortHeader" model='new SortHeaderViewModel { Label = "Trạng thái", Column = "status", CurrentSort = (string?)ViewBag.Sort, CurrentDirection = (string?)ViewBag.Direction }' /><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="@columnCount" class="text-center text-muted py-5">Chưa có chứng từ.</td></tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    var badge = item.Status == DocumentStatus.Completed ? "bg-success" : item.Status == DocumentStatus.Cancelled ? "bg-danger" : "bg-secondary";
+                    <tr>
+                        <td><a asp-action="Details" asp-route-id="@item.Id" class="fw-semibold">@item.DocumentNo</a></td>
+                        <td>@item.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                        @if (showFromWarehouse) { <td>@item.FromWarehouse?.Name</td> }
+                        @if (showToWarehouse) { <td>@item.ToWarehouse?.Name</td> }
+                        @if (showCustomer) { <td>@item.Customer?.Name</td> }
+                        <td class="money">@item.TotalAmount.ToString("N0")</td>
+                        <td><span class="badge @badge">@item.Status</span></td>
+                        <td class="text-end"><a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Chi tiết</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            <partial name="_Pagination"
+                     model='new PaginationViewModel { Page = Model.Page, TotalPages = Model.TotalPages, RouteValues = new() { ["type"] = type.ToString(), ["status"] = ViewBag.Status?.ToString(), ["fromDate"] = ((DateTime?)ViewBag.FromDate)?.ToString("yyyy-MM-dd"), ["toDate"] = ((DateTime?)ViewBag.ToDate)?.ToString("yyyy-MM-dd"), ["keyword"] = (string?)ViewBag.Keyword, ["sort"] = (string?)ViewBag.Sort, ["direction"] = (string?)ViewBag.Direction } }' />
+        </div>
+    </div>
+}

@@ -1,0 +1,250 @@
+@model PaymentEditViewModel
+@{
+    var isEdit = Model.Id > 0;
+    ViewData["Title"] = isEdit ? "Sửa phiếu thu công nợ" : "Tạo phiếu thu công nợ";
+    var selectedCustomer = Model.Customers.FirstOrDefault(x => x.Id == Model.CustomerId);
+    var originalAmountWasApplied = isEdit && Model.OriginalStatus == PaymentStatus.Completed;
+    var selectedCustomerDebt = (selectedCustomer?.Debt ?? 0) +
+        (originalAmountWasApplied && Model.CustomerId == Model.OriginalCustomerId ? Model.Amount : 0);
+}
+
+<div class="payment-create-toolbar">
+    <a asp-action="@(isEdit ? "Details" : "Index")" asp-route-id="@(isEdit ? Model.Id : null)" class="btn btn-sm btn-light">← @(isEdit ? "Chi tiết phiếu thu" : "Khách hàng đang nợ")</a>
+</div>
+
+<div class="card payment-create-card">
+    <div class="payment-create-heading">
+        <div>
+            <h1>@(isEdit ? "Sửa phiếu thu" : "Ghi nhận thanh toán")</h1>
+            <p>Có thể chọn nhiều đơn và nhập số tiền thu riêng cho từng đơn.</p>
+        </div>
+        <span>@(isEdit ? "Đang chỉnh sửa" : "Phiếu thu mới")</span>
+    </div>
+
+    <form method="post" id="paymentForm">
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="OriginalCustomerId" type="hidden" />
+        <input asp-for="OriginalDocumentId" type="hidden" />
+        <input asp-for="OriginalStatus" type="hidden" />
+        <input asp-for="DocumentId" type="hidden" />
+        <div asp-validation-summary="All" class="alert alert-danger payment-validation"></div>
+
+        <div class="payment-create-grid">
+            <section class="payment-create-section">
+                <div class="payment-section-heading">
+                    <span>1</span>
+                    <div><strong>Khách hàng và các đơn còn nợ</strong><small>Tích chọn một hoặc nhiều đơn cần thanh toán.</small></div>
+                </div>
+
+                <div class="payment-field">
+                    <label asp-for="CustomerId" class="form-label"></label>
+                    <select asp-for="CustomerId" id="customerSelect" class="form-select">
+                        <option value="0">-- Chọn khách hàng --</option>
+                        @foreach (var customer in Model.Customers)
+                        {
+                            <option value="@customer.Id" data-debt="@customer.Debt">@customer.Name — nợ @customer.Debt.ToString("N0") đ</option>
+                        }
+                    </select>
+                    <span asp-validation-for="CustomerId" class="text-danger"></span>
+                </div>
+
+                <div class="payment-customer-debt">
+                    <span>Công nợ hiện tại</span>
+                    <strong id="customerDebtValue">@selectedCustomerDebt.ToString("N0") đ</strong>
+                </div>
+
+                <div class="payment-allocation-heading">
+                    <strong>Chọn đơn thanh toán</strong>
+                    <small>Bỏ trống nếu muốn thu chung, không gắn với đơn cụ thể.</small>
+                </div>
+                <div id="allocationList" class="payment-allocation-list">
+                    @if (Model.Allocations.Count == 0)
+                    {
+                        <div class="payment-allocation-empty">Khách hàng không có đơn bán nào còn nợ.</div>
+                    }
+                    @for (var i = 0; i < Model.Allocations.Count; i++)
+                    {
+                        <article class="payment-allocation-row" data-debt="@Model.Allocations[i].AvailableDebt.ToString("0", System.Globalization.CultureInfo.InvariantCulture)">
+                            <input asp-for="Allocations[i].DocumentId" type="hidden" />
+                            <label class="payment-allocation-check">
+                                <input asp-for="Allocations[i].Selected" class="allocation-check" />
+                                <span></span>
+                            </label>
+                            <div class="payment-allocation-order">
+                                <strong>Đơn @Model.Allocations[i].DocumentDate.ToString("dd/MM/yyyy HH:mm")</strong>
+                                <small>Tổng @Model.Allocations[i].TotalAmount.ToString("N0") đ · Đã thu @Model.Allocations[i].PaidAmount.ToString("N0") đ</small>
+                            </div>
+                            <div class="payment-allocation-debt"><small>Còn nợ</small><strong>@Model.Allocations[i].AvailableDebt.ToString("N0") đ</strong></div>
+                            <div class="payment-allocation-money">
+                                <input type="text" inputmode="numeric" autocomplete="off"
+                                       value="@Model.Allocations[i].Amount.ToString("N0")"
+                                       class="form-control money-input allocation-amount-display"
+                                       aria-label="Số tiền thu cho đơn" />
+                                <input type="hidden"
+                                       id="Allocations_@(i)__Amount"
+                                       name="Allocations[@i].Amount"
+                                       value="@Model.Allocations[i].Amount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                                       class="money-value allocation-amount-value" />
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="payment-create-section is-finance">
+                <div class="payment-section-heading">
+                    <span>2</span>
+                    <div><strong>Thông tin thanh toán</strong><small>Tổng tiền tự cộng khi chọn các đơn.</small></div>
+                </div>
+
+                <div class="payment-field payment-amount-field">
+                    <label for="AmountDisplay" class="form-label">Tổng số tiền thu</label>
+                    <div class="payment-amount-input">
+                        <input id="AmountDisplay" type="text" inputmode="numeric" autocomplete="off" required
+                               value="@Model.Amount.ToString("N0")" class="form-control money-input" />
+                        <input id="Amount" name="Amount" type="hidden"
+                               value="@Model.Amount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                               class="money-value" />
+                        <span>đ</span>
+                    </div>
+                    <small id="amountHelp" class="payment-field-help">Chọn đơn để tự cộng, hoặc nhập trực tiếp nếu thu chung.</small>
+                    <span asp-validation-for="Amount" class="text-danger"></span>
+                </div>
+
+                <div class="payment-finance-fields">
+                    <div class="payment-field">
+                        <label asp-for="PaymentDate" class="form-label"></label>
+                        <input asp-for="PaymentDate" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control" />
+                    </div>
+                    <div class="payment-field">
+                        <label asp-for="PaymentMethod" class="form-label"></label>
+                        <select asp-for="PaymentMethod" asp-items="Html.GetEnumSelectList<PaymentMethod>()" class="form-select"></select>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="payment-create-note">
+            <label asp-for="Remark" class="form-label"></label>
+            <textarea asp-for="Remark" class="form-control" rows="3" placeholder="Nội dung thanh toán hoặc ghi chú thêm..."></textarea>
+        </div>
+
+        <div class="payment-create-footer">
+            <button class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Lưu phiếu chờ xử lý")</button>
+            <a asp-action="@(isEdit ? "Details" : "Index")" asp-route-id="@(isEdit ? Model.Id : null)" class="btn btn-light">Hủy</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            "use strict";
+
+            const customerSelect = document.querySelector('#customerSelect');
+            const customerDebtValue = document.querySelector('#customerDebtValue');
+            const allocationList = document.querySelector('#allocationList');
+            const amountDisplay = document.querySelector('#AmountDisplay');
+            const amountValue = amountDisplay?.parentElement?.querySelector('.money-value');
+            const amountHelp = document.querySelector('#amountHelp');
+            const originalCustomerId = Number(document.querySelector('#OriginalCustomerId')?.value || 0);
+            const originalAmountWasApplied = '@originalAmountWasApplied.ToString().ToLowerInvariant()' === 'true';
+            const originalAmount = Number('@Model.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)');
+            const originalDocumentIds = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Allocations.Where(x => x.Selected).Select(x => x.DocumentId)));
+            const digitsOnly = value => String(value ?? '').replace(/\D/g, '');
+            const formatMoney = value => (digitsOnly(value).replace(/^0+(?=\d)/, '') || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+            const syncTotal = resetGeneral => {
+                const selectedRows = [...allocationList.querySelectorAll('.payment-allocation-row')]
+                    .filter(row => row.querySelector('.allocation-check')?.checked);
+                if (selectedRows.length > 0) {
+                    const total = selectedRows.reduce((sum, row) =>
+                        sum + Number(row.querySelector('.allocation-amount-value')?.value || 0), 0);
+                    amountDisplay.value = formatMoney(total);
+                    amountValue.value = String(total);
+                    amountDisplay.readOnly = true;
+                    amountHelp.textContent = `${selectedRows.length} đơn đã chọn · Tổng tiền được tự cộng.`;
+                } else {
+                    amountDisplay.readOnly = false;
+                    if (resetGeneral) {
+                        amountDisplay.value = '0';
+                        amountValue.value = '0';
+                    }
+                    amountHelp.textContent = 'Không chọn đơn: nhập trực tiếp số tiền thu chung.';
+                }
+            };
+
+            const bindAllocationRows = () => {
+                allocationList.querySelectorAll('.payment-allocation-row').forEach(row => {
+                    const checkbox = row.querySelector('.allocation-check');
+                    const display = row.querySelector('.allocation-amount-display');
+                    const value = row.querySelector('.allocation-amount-value');
+                    const maximumDebt = Math.trunc(Number(row.dataset.debt || 0));
+                    const initialAmount = Number(value.value || 0);
+                    if (checkbox.checked && (initialAmount <= 0 || initialAmount > maximumDebt)) {
+                        value.value = String(maximumDebt);
+                        display.value = formatMoney(maximumDebt);
+                    }
+                    display.disabled = !checkbox.checked;
+                    checkbox.addEventListener('change', () => {
+                        display.disabled = !checkbox.checked;
+                        if (checkbox.checked && Number(value.value || 0) <= 0) {
+                            value.value = String(maximumDebt);
+                            display.value = formatMoney(maximumDebt);
+                        }
+                        syncTotal(!checkbox.checked);
+                    });
+                    display.addEventListener('input', () => requestAnimationFrame(() => syncTotal(false)));
+                    display.addEventListener('blur', () => {
+                        if (Number(value.value || 0) > maximumDebt) {
+                            value.value = String(maximumDebt);
+                            display.value = formatMoney(maximumDebt);
+                            syncTotal(false);
+                        }
+                    });
+                });
+                syncTotal(false);
+            };
+
+            const renderSales = sales => {
+                if (!sales.length) {
+                    allocationList.innerHTML = '<div class="payment-allocation-empty">Khách hàng không có đơn bán nào còn nợ.</div>';
+                    syncTotal(true);
+                    return;
+                }
+                allocationList.innerHTML = sales.map((sale, index) => {
+                    const date = new Date(sale.documentDate).toLocaleString('vi-VN', { hour12: false });
+                    return `<article class="payment-allocation-row" data-debt="${Math.trunc(Number(sale.debtAmount || 0))}">
+                        <input type="hidden" name="Allocations[${index}].DocumentId" value="${sale.id}">
+                        <label class="payment-allocation-check"><input type="hidden" name="Allocations[${index}].Selected" value="false"><input type="checkbox" name="Allocations[${index}].Selected" value="true" class="allocation-check"><span></span></label>
+                        <div class="payment-allocation-order"><strong>Đơn ${date}</strong><small>Tổng ${formatMoney(sale.totalAmount)} đ · Đã thu ${formatMoney(sale.paidAmount)} đ</small></div>
+                        <div class="payment-allocation-debt"><small>Còn nợ</small><strong>${formatMoney(sale.debtAmount)} đ</strong></div>
+                        <div class="payment-allocation-money"><input type="text" inputmode="numeric" autocomplete="off" value="0" class="form-control money-input allocation-amount-display" aria-label="Số tiền thu cho đơn"><input type="hidden" name="Allocations[${index}].Amount" value="0" class="money-value allocation-amount-value"></div>
+                    </article>`;
+                }).join('');
+                bindAllocationRows();
+            };
+
+            customerSelect?.addEventListener('change', async event => {
+                const selectedOption = event.target.selectedOptions[0];
+                const sameOriginalCustomer = Number(event.target.value) === originalCustomerId;
+                const availableDebt = Number(selectedOption?.dataset.debt || 0) +
+                    (originalAmountWasApplied && sameOriginalCustomer ? originalAmount : 0);
+                customerDebtValue.textContent = `${formatMoney(availableDebt)} đ`;
+                allocationList.innerHTML = '<div class="payment-allocation-empty">Đang tải các đơn còn nợ...</div>';
+                syncTotal(true);
+                if (!event.target.value || event.target.value === '0') {
+                    renderSales([]);
+                    return;
+                }
+                const include = originalAmountWasApplied && sameOriginalCustomer && originalDocumentIds.length
+                    ? `&includeDocumentIds=${encodeURIComponent(originalDocumentIds.join(','))}` : '';
+                const response = await fetch(`/Payments/Outstanding?customerId=${encodeURIComponent(event.target.value)}${include}`);
+                renderSales(response.ok ? await response.json() : []);
+            });
+
+            bindAllocationRows();
+        })();
+    </script>
+}

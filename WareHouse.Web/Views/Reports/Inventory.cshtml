@@ -1,0 +1,133 @@
+@model StockMatrix
+@{
+    ViewData["Title"] = "Báo cáo tồn kho";
+    var products = (IReadOnlyList<Product>)ViewBag.Products;
+    var warehouses = (IReadOnlyList<Warehouse>)ViewBag.Warehouses;
+    var selectedWarehouse = warehouses.FirstOrDefault(x => x.Id == (int?)ViewBag.WarehouseId);
+    var groups = Model.Rows
+        .GroupBy(x => x.ProductId)
+        .Select(group => new
+        {
+            ProductId = group.Key,
+            Name = group.First().ProductName,
+            Category = group.First().ProductCategory,
+            Unit = group.First().ProductUnit,
+            Variants = group.ToList(),
+            Quantity = group.Sum(x => x.TotalQuantity),
+            Value = group.Sum(x => x.InventoryValue)
+        })
+        .OrderByDescending(x => x.Quantity > 0)
+        .ThenByDescending(x => x.Value)
+        .ThenBy(x => x.Name)
+        .ToList();
+    var totalQuantity = groups.Sum(x => x.Quantity);
+    var totalValue = groups.Sum(x => x.Value);
+    var outOfStockCount = groups.Count(x => x.Quantity < 1);
+    var maxValue = groups.Count == 0 ? 0 : groups.Max(x => x.Value);
+    var hasFilters = ViewBag.ProductId is not null || ViewBag.WarehouseId is not null ||
+                     !string.IsNullOrWhiteSpace((string?)ViewBag.Keyword);
+}
+
+<div class="analytics-page report-page">
+    <partial name="_ReportNavigation" />
+
+    <header class="analytics-heading report-heading">
+        <div>
+            <span class="analytics-kicker">Báo cáo tồn kho</span>
+            <h1>Hàng đang có trong kho</h1>
+            <p>@(selectedWarehouse is null ? "Tổng hợp toàn bộ kho" : $"Phạm vi: {selectedWarehouse.Name}")</p>
+        </div>
+    </header>
+
+    <form method="get" class="analytics-filter report-filter">
+        <label><span>Sản phẩm</span><select name="productId" class="form-select"><option value="">Tất cả sản phẩm</option>@foreach (var product in products) { <option value="@product.Id" selected="@(ViewBag.ProductId == product.Id)">@product.Name</option> }</select></label>
+        <label><span>Kho hàng</span><select name="warehouseId" class="form-select"><option value="">Tất cả kho</option>@foreach (var warehouse in warehouses) { <option value="@warehouse.Id" selected="@(ViewBag.WarehouseId == warehouse.Id)">@warehouse.Name</option> }</select></label>
+        <label class="report-filter-search"><span>Tìm nhanh</span><input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Tên sản phẩm hoặc thuộc tính..." /></label>
+        <button class="btn btn-outline-primary" type="submit">Lọc dữ liệu</button>
+        @if (hasFilters) { <a asp-action="Inventory" class="btn btn-light">Đặt lại</a> }
+    </form>
+
+    <section class="analytics-metric-grid report-metrics">
+        <article class="analytics-metric is-purple"><span class="analytics-metric-label">Giá trị tồn</span><strong>@totalValue.ToString("N0") <small>đ</small></strong><p>Tính theo giá vốn hiện tại</p></article>
+        <article class="analytics-metric is-blue"><span class="analytics-metric-label">Số lượng tồn</span><strong>@totalQuantity.ToString("N0")</strong><p>Đơn vị hàng trong phạm vi xem</p></article>
+            <article class="analytics-metric is-green"><span class="analytics-metric-label">Sản phẩm</span><strong>@groups.Count</strong><p>@groups.Sum(x => x.Variants.Count) phân loại</p></article>
+        <article class="analytics-metric @(outOfStockCount > 0 ? "is-red" : "is-green")"><span class="analytics-metric-label">Hết hàng</span><strong>@outOfStockCount</strong><p>Sản phẩm có tổng tồn dưới 1</p></article>
+    </section>
+
+    <section class="analytics-report-grid">
+        <article class="analytics-panel report-insight-panel">
+            <header class="analytics-panel-header"><div><span>Tỷ trọng giá trị</span><h2>Top sản phẩm tồn nhiều</h2></div></header>
+            @if (groups.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Không có dữ liệu</strong><span>Hãy thay đổi bộ lọc để xem tồn kho.</span></div>
+            }
+            else
+            {
+                <div class="analytics-ranking is-compact">
+                    @foreach (var group in groups.OrderByDescending(x => x.Value).Take(6))
+                    {
+                        var width = maxValue <= 0 ? 0 : Math.Max(4, group.Value / maxValue * 100);
+                        var widthText = width.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                        <div class="analytics-rank-row">
+                            <div class="analytics-rank-main">
+                                <div><strong>@group.Name</strong><span>@group.Quantity.ToString("N0") @(group.Unit ?? "đơn vị")</span></div>
+                                <div class="analytics-bar"><i style="width:@widthText%"></i></div>
+                            </div>
+                            <b>@group.Value.ToString("N0") đ</b>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="analytics-panel report-note-panel">
+            <header class="analytics-panel-header"><div><span>Cách đọc</span><h2>Thông tin cần chú ý</h2></div></header>
+            <div class="report-note-list">
+                <div><span class="report-note-dot is-green"></span><p><strong>Còn hàng</strong><small>Sản phẩm có tổng tồn từ 1 trở lên.</small></p></div>
+                <div><span class="report-note-dot is-red"></span><p><strong>Hết hàng</strong><small>Tổng tồn dưới 1, nên kiểm tra kế hoạch nhập.</small></p></div>
+                    <div><span class="report-note-dot is-purple"></span><p><strong>Giá trị tồn</strong><small>Số lượng thực tế nhân với giá vốn của từng phân loại.</small></p></div>
+            </div>
+        </article>
+    </section>
+
+    <section class="analytics-panel report-list-panel">
+        <header class="analytics-panel-header">
+            <div><span>Chi tiết</span><h2>Tồn kho theo sản phẩm</h2></div>
+            <b class="report-count">@groups.Count sản phẩm</b>
+        </header>
+        <div class="report-group-list">
+            @if (groups.Count == 0)
+            {
+                <div class="analytics-empty"><strong>Không có dữ liệu tồn kho phù hợp</strong><span>Thử bỏ bớt điều kiện lọc.</span></div>
+            }
+            @foreach (var group in groups)
+            {
+                <details class="report-product-group">
+                    <summary>
+                        <span class="report-expand-mark">+</span>
+                                <span class="report-product-name"><strong>@group.Name</strong><small>@(group.Category ?? "Chưa phân nhóm") · @group.Variants.Count phân loại</small></span>
+                        <span class="report-summary-number"><small>Tổng tồn</small><strong class="@(group.Quantity < 1 ? "text-danger" : "")">@group.Quantity.ToString("N0")</strong></span>
+                        <span class="report-summary-number is-money"><small>Giá trị</small><strong>@group.Value.ToString("N0") đ</strong></span>
+                        <span class="report-stock-state @(group.Quantity < 1 ? "is-out" : "is-in")">@(group.Quantity < 1 ? "Hết hàng" : "Còn hàng")</span>
+                    </summary>
+                    <div class="report-variant-list">
+                        @foreach (var variant in group.Variants.OrderByDescending(x => x.TotalQuantity).ThenBy(x => x.Attributes))
+                        {
+                            <div class="report-variant-row">
+                                <div><strong>@(string.IsNullOrWhiteSpace(variant.Attributes) ? "Mặc định" : variant.Attributes)</strong><small>Giá vốn @variant.CostPrice.ToString("N0") đ</small></div>
+                                <div class="report-warehouse-chips">
+                                    @foreach (var warehouse in Model.Warehouses)
+                                    {
+                                        var quantity = variant.Quantities.GetValueOrDefault(warehouse.Id);
+                                        <span><small>@warehouse.Name</small><b class="@(quantity < 1 ? "text-danger" : "")">@quantity.ToString("N0")</b></span>
+                                    }
+                                </div>
+                                <div class="report-variant-total"><small>Tổng / Giá trị</small><strong>@variant.TotalQuantity.ToString("N0") · @variant.InventoryValue.ToString("N0") đ</strong></div>
+                            </div>
+                        }
+                    </div>
+                </details>
+            }
+        </div>
+    </section>
+</div>

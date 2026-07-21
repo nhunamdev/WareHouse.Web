@@ -1,0 +1,22 @@
+@using Microsoft.AspNetCore.WebUtilities
+@model SortHeaderViewModel
+@{
+    var isActive = string.Equals(Model.CurrentSort, Model.Column, StringComparison.OrdinalIgnoreCase);
+    var isDescending = isActive && string.Equals(Model.CurrentDirection, "desc", StringComparison.OrdinalIgnoreCase);
+    var nextDirection = isActive && !isDescending ? "desc" : "asc";
+    var query = Context.Request.Query.ToDictionary(
+        pair => pair.Key,
+        pair => (string?)pair.Value.ToString(),
+        StringComparer.OrdinalIgnoreCase);
+    query["sort"] = Model.Column;
+    query["direction"] = nextDirection;
+    query["page"] = "1";
+    var href = QueryHelpers.AddQueryString(Context.Request.Path.Value ?? string.Empty, query);
+    var ariaSort = !isActive ? "none" : isDescending ? "descending" : "ascending";
+}
+<th class="@Model.CssClass" aria-sort="@ariaSort">
+    <a href="@href" class="table-sort-link @(isActive ? "is-active" : string.Empty)">
+        <span>@Model.Label</span>
+        <span class="table-sort-icon" aria-hidden="true">@(isActive ? (isDescending ? "↓" : "↑") : "↕")</span>
+    </a>
+</th>

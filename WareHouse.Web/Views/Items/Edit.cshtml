@@ -1,0 +1,346 @@
+@model ItemEditViewModel
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "Thêm phân loại sản phẩm" : "Sửa phân loại sản phẩm";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">
+            @(isNew
+        ? "Chọn sản phẩm và tạo nhiều phân loại trong một lần."
+                : "Cập nhật thuộc tính và giá của Item.")
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" form="itemEditForm" class="btn btn-primary">
+            @(isNew ? "Lưu danh sách Item" : "Lưu Item")
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+    </div>
+</div>
+
+<form method="post" id="itemEditForm">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="Code" type="hidden" />
+    <input asp-for="Barcode" type="hidden" />
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+    @if (isNew)
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold">Sản phẩm</div>
+            <div class="card-body">
+                <label asp-for="ProductId" class="form-label"></label>
+                <select asp-for="ProductId" class="form-select">
+                    <option value="0">-- Chọn sản phẩm --</option>
+                    @foreach (var product in Model.Products)
+                    {
+                        <option value="@product.Id">@product.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="ProductId" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="card item-batch-card">
+            <div class="card-header bg-white product-variant-header">
+                <div>
+                    <div class="fw-semibold">Danh sách phân loại</div>
+                    <div class="text-muted product-variant-help">
+                        Chọn thuộc tính và nhập giá cho từng Item.
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary" id="addItemRow">
+                    + Thêm dòng
+                </button>
+            </div>
+            <div class="card-body">
+                @if (Model.AttributeGroups.Count == 0)
+                {
+                    <div class="alert alert-info mb-3">
+                        Chưa có nhóm thuộc tính. Sản phẩm chỉ có thể tạo một Item mặc định.
+                    </div>
+                }
+
+                <div id="itemRows" class="product-variant-list item-batch-list">
+                    @for (var i = 0; i < Model.Rows.Count; i++)
+                    {
+                        var row = Model.Rows[i];
+                        <div class="product-variant-row" data-item-row>
+                            <div class="product-variant-number" aria-label="Dòng Item">
+                                <span class="item-row-number">@(i + 1)</span>
+                            </div>
+
+                            @foreach (var group in Model.AttributeGroups)
+                            {
+                                <div class="product-variant-field">
+                                    <label class="form-label">@group.Name</label>
+                                    <select name="Rows[@i].AttributeValueIds"
+                                            data-field="AttributeValueIds"
+                                            class="form-select">
+                                        <option value="0">Không áp dụng</option>
+                                        @foreach (var value in group.Values)
+                                        {
+                                            <option value="@value.Id"
+                                                    selected="@(row.AttributeValueIds.Contains(value.Id) ? "selected" : null)">
+                                                @value.Value
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+
+                            <div class="product-variant-field">
+                                <label class="form-label">Giá vốn</label>
+                                <input type="text"
+                                       inputmode="numeric"
+                                       autocomplete="off"
+                                       value="@row.CostPrice.ToString("N0")"
+                                       class="form-control money-input" />
+                                <input asp-for="Rows[i].CostPrice"
+                                       type="hidden"
+                                       class="money-value"
+                                       data-field="CostPrice" />
+                            </div>
+
+                            <div class="product-variant-field">
+                                <label class="form-label">Giá bán</label>
+                                <input type="text"
+                                       inputmode="numeric"
+                                       autocomplete="off"
+                                       value="@row.SalePrice.ToString("N0")"
+                                       class="form-control money-input" />
+                                <input asp-for="Rows[i].SalePrice"
+                                       type="hidden"
+                                       class="money-value"
+                                       data-field="SalePrice" />
+                            </div>
+
+                            <button type="button"
+                                    class="product-variant-delete"
+                                    data-remove-item
+                                    aria-label="Xóa Item"
+                                    title="Xóa Item">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 7h16" />
+                                    <path d="M9 7V4h6v3" />
+                                    <path d="M7 7l1 13h8l1-13" />
+                                    <path d="M10 11v5M14 11v5" />
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <div id="itemEmptyState"
+                     class="product-variant-empty text-muted"
+                     hidden="@(Model.Rows.Count > 0)">
+                    Chưa có dòng Item. Bấm “Thêm dòng” để bắt đầu.
+                </div>
+            </div>
+        </div>
+
+        <template id="itemRowTemplate">
+            <div class="product-variant-row" data-item-row>
+                <div class="product-variant-number" aria-label="Dòng Item">
+                    <span class="item-row-number"></span>
+                </div>
+
+                @foreach (var group in Model.AttributeGroups)
+                {
+                    <div class="product-variant-field">
+                        <label class="form-label">@group.Name</label>
+                        <select data-field="AttributeValueIds" class="form-select">
+                            <option value="0">Không áp dụng</option>
+                            @foreach (var value in group.Values)
+                            {
+                                <option value="@value.Id">@value.Value</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div class="product-variant-field">
+                    <label class="form-label">Giá vốn</label>
+                    <input type="text"
+                           inputmode="numeric"
+                           autocomplete="off"
+                           value="0"
+                           class="form-control money-input" />
+                    <input type="hidden" value="0" class="money-value" data-field="CostPrice" />
+                </div>
+
+                <div class="product-variant-field">
+                    <label class="form-label">Giá bán</label>
+                    <input type="text"
+                           inputmode="numeric"
+                           autocomplete="off"
+                           value="0"
+                           class="form-control money-input" />
+                    <input type="hidden" value="0" class="money-value" data-field="SalePrice" />
+                </div>
+
+                <button type="button"
+                        class="product-variant-delete"
+                        data-remove-item
+                        aria-label="Xóa Item"
+                        title="Xóa Item">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h16" />
+                        <path d="M9 7V4h6v3" />
+                        <path d="M7 7l1 13h8l1-13" />
+                        <path d="M10 11v5M14 11v5" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+    }
+    else
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label asp-for="ProductId" class="form-label"></label>
+                        <select asp-for="ProductId" class="form-select">
+                            <option value="0">-- Chọn sản phẩm --</option>
+                            @foreach (var product in Model.Products)
+                            {
+                                <option value="@product.Id">@product.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ProductId" class="text-danger"></span>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <label for="CostPriceDisplay" class="form-label">Giá vốn</label>
+                        <input id="CostPriceDisplay"
+                               type="text"
+                               inputmode="numeric"
+                               autocomplete="off"
+                               value="@Model.CostPrice.ToString("N0")"
+                               class="form-control money-input" />
+                        <input asp-for="CostPrice" type="hidden" class="money-value" />
+                        <span asp-validation-for="CostPrice" class="text-danger"></span>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <label for="SalePriceDisplay" class="form-label">Giá bán</label>
+                        <input id="SalePriceDisplay"
+                               type="text"
+                               inputmode="numeric"
+                               autocomplete="off"
+                               value="@Model.SalePrice.ToString("N0")"
+                               class="form-control money-input" />
+                        <input asp-for="SalePrice" type="hidden" class="money-value" />
+                        <span asp-validation-for="SalePrice" class="text-danger"></span>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input asp-for="IsActive" class="form-check-input" />
+                            <label asp-for="IsActive" class="form-check-label">Đang hoạt động</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white fw-semibold">Thuộc tính Item</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @if (Model.AttributeGroups.Count == 0)
+                    {
+                        <div class="col-12 text-muted">
+                                Chưa khai báo thuộc tính. Phân loại được lưu không có thuộc tính riêng.
+                        </div>
+                    }
+                    @foreach (var group in Model.AttributeGroups)
+                    {
+                        <div class="col-md-6 col-lg-4">
+                            <label class="form-label">@group.Name</label>
+                            <select name="AttributeValueIds" class="form-select">
+                                <option value="">Không áp dụng</option>
+                                @foreach (var value in group.Values)
+                                {
+                                    <option value="@value.Id"
+                                            selected="@(Model.AttributeValueIds.Contains(value.Id) ? "selected" : null)">
+                                        @value.Value
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</form>
+
+@if (!isNew)
+{
+    <partial name="_AuditInfo" model="Model" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (isNew)
+    {
+        <script>
+            (() => {
+                "use strict";
+
+                const form = document.getElementById("itemEditForm");
+                const rowsContainer = document.getElementById("itemRows");
+                const rowTemplate = document.getElementById("itemRowTemplate");
+                const addButton = document.getElementById("addItemRow");
+                const emptyState = document.getElementById("itemEmptyState");
+
+                if (!form || !rowsContainer || !rowTemplate || !addButton || !emptyState) return;
+
+                const reindexRows = () => {
+                    const rows = [...rowsContainer.querySelectorAll("[data-item-row]")];
+
+                    rows.forEach((row, index) => {
+                        const number = row.querySelector(".item-row-number");
+                        if (number) number.textContent = String(index + 1);
+
+                        row.querySelectorAll('[data-field="AttributeValueIds"]').forEach((field) => {
+                            field.name = `Rows[${index}].AttributeValueIds`;
+                        });
+
+                        row.querySelectorAll('[data-field="CostPrice"], [data-field="SalePrice"]').forEach((field) => {
+                            field.name = `Rows[${index}].${field.dataset.field}`;
+                        });
+                    });
+
+                    emptyState.hidden = rows.length > 0;
+                };
+
+                const appendRow = () => {
+                    const row = rowTemplate.content.firstElementChild.cloneNode(true);
+                    rowsContainer.appendChild(row);
+                    reindexRows();
+                    window.WareHouseSelect2?.init(row);
+                    (row.querySelector(".select2-selection") || row.querySelector(".money-input"))?.focus();
+                };
+
+                addButton.addEventListener("click", appendRow);
+
+                rowsContainer.addEventListener("click", (event) => {
+                    const button = event.target.closest("button");
+                    const row = button?.closest("[data-item-row]");
+                    if (!button || !row || !button.matches("[data-remove-item]")) return;
+
+                    window.WareHouseSelect2?.destroy(row);
+                    row.remove();
+                    reindexRows();
+                });
+
+                form.addEventListener("submit", reindexRows);
+                reindexRows();
+            })();
+        </script>
+    }
+}
