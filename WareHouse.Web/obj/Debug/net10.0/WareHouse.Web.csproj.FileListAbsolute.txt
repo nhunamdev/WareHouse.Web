@@ -460,3 +460,5 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Debug\net10.0\compressed\7ph3yff
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Debug\net10.0\compressed\ldw70jwvyw-{0}-n5ht9zvp4w-n5ht9zvp4w.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Debug\net10.0\compressed\dlgckuxtw0-{0}-bz1cf71swy-bz1cf71swy.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Debug\net10.0\SixLabors.ImageSharp.dll
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Debug\net10.0\WareHouse.Web.sourcelink.json
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Debug\net10.0\data\images\.gitkeep

@@ -1,4 +1,5 @@
 @model DocumentEditViewModel
+@inject Microsoft.Extensions.Options.IOptions<ProductImageStorageOptions> ProductImageOptions
 @{
     var needsFrom = Model.DocumentType is StockDocumentType.Export or StockDocumentType.Transfer or StockDocumentType.Sale;
     var needsTo = Model.DocumentType is StockDocumentType.Import or StockDocumentType.Transfer or StockDocumentType.Return or StockDocumentType.Adjust;
@@ -18,7 +19,7 @@
     var itemWarehouseLabel = isImport ? "Kho nhập" : sourceWarehouseLabel;
     var sourceWarehousePlaceholder = isTransfer ? "-- Chọn kho nguồn --" : "-- Chọn kho xuất --";
     var itemWarehouseId = isImport ? Model.ToWarehouseId : Model.FromWarehouseId;
-    var imageBaseUrl = ((string?)ViewBag.ProductImageBaseUrl ?? "/data/images").TrimEnd('/');
+    var imageBaseUrl = ProductImageOptions.Value.RequestPath.TrimEnd('/');
     var emptyItemLabel = requiresItemWarehouse && !itemWarehouseId.HasValue
         ? $"-- Chọn {itemWarehouseLabel.ToLowerInvariant()} trước --"
         : enforcesSourceStock
@@ -105,7 +106,11 @@
                             <option value="">-- Chọn khách hàng --</option>
                             @foreach (var customer in Model.Customers)
                             {
-                                <option value="@customer.Id" data-phone="@customer.Phone">@customer.Name</option>
+                                <option value="@customer.Id"
+                                        data-phone="@customer.Phone"
+                                        data-debt="@customer.Debt.ToString("0", System.Globalization.CultureInfo.InvariantCulture)">
+                                    @customer.Name
+                                </option>
                             }
                         </select>
                     </div>
@@ -190,15 +195,46 @@
                     </tr>
                 }
                 </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="4" class="text-end">Tổng tiền</th>
-                        <th class="money document-total" id="grandTotal">0</th>
-                        <th></th>
-                    </tr>
-                </tfoot>
+                @if (!isSale)
+                {
+                    <tfoot>
+                        <tr>
+                            <th colspan="4" class="text-end">Tổng tiền</th>
+                            <th class="money document-total" id="grandTotal">0</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                }
             </table>
         </div>
+        @if (isSale)
+        {
+            <div class="sale-order-finance" data-previous-debt="@Model.PreviousDebtAmount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)">
+                <div class="sale-order-finance-row">
+                    <span>Tổng tiền đơn hàng</span>
+                    <strong id="grandTotal">0 đ</strong>
+                </div>
+                <div class="sale-order-finance-row is-discount">
+                    <label asp-for="DiscountAmount">Chiết khấu</label>
+                    <div class="sale-order-discount-input">
+                        <input id="discountAmountDisplay" type="text" inputmode="numeric" autocomplete="off"
+                               value="@Model.DiscountAmount.ToString("N0")"
+                               class="form-control money-input text-end" />
+                        <input asp-for="DiscountAmount" type="hidden" class="money-value" />
+                        <span>đ</span>
+                    </div>
+                </div>
+                <div class="sale-order-finance-row is-old-debt">
+                    <span>Nợ cũ</span>
+                    <strong id="previousDebtAmount">@Model.PreviousDebtAmount.ToString("N0") đ</strong>
+                </div>
+                <div class="sale-order-finance-row is-payable">
+                    <span>Tổng số tiền phải thanh toán</span>
+                    <strong id="totalPayableAmount">0 đ</strong>
+                </div>
+                <small>Tiền khách thanh toán khi hoàn thành đơn sẽ được trừ vào các khoản nợ cũ trước, sau đó mới tính cho đơn hiện tại.</small>
+            </div>
+        }
     </div>
 
     @if (!isSale)
@@ -234,6 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const warehouse = document.querySelector(importDocument ? '#toWarehouse' : '#fromWarehouse');
     const customer = document.querySelector('#customerSelect');
     const customerPhone = document.querySelector('#CustomerPhone');
+    const saleFinance = document.querySelector('.sale-order-finance');
+    const discountInput = document.querySelector('#discountAmountDisplay');
+    const discountValue = document.querySelector('#DiscountAmount');
+    const previousDebtOutput = document.querySelector('#previousDebtAmount');
+    const totalPayableOutput = document.querySelector('#totalPayableAmount');
+    let previousDebt = Number(saleFinance?.dataset.previousDebt || 0);
     const adjust = @(isAdjust ? "true" : "false");
     const itemWarehouseRequired = @(requiresItemWarehouse ? "true" : "false");
     const sourceStockEnforced = @(enforcesSourceStock ? "true" : "false");
@@ -253,7 +295,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const price = Number(row.querySelector('.price-value').value || 0);
             total += quantity * price;
         });
-        document.querySelector('#grandTotal').textContent = total.toLocaleString('vi-VN');
+        const totalOutput = document.querySelector('#grandTotal');
+        if (totalOutput) totalOutput.textContent = `${total.toLocaleString('vi-VN')}${sale ? ' đ' : ''}`;
+        if (sale) {
+            const discount = Number((discountInput?.value || '0').replace(/\D/g, '')) || 0;
+            if (discountValue) discountValue.value = String(discount);
+            if (discountInput) discountInput.setCustomValidity(
+                discount > total ? 'Chiết khấu không được vượt tổng tiền đơn hàng.' : '');
+            if (totalPayableOutput)
+                totalPayableOutput.textContent = `${(Math.max(0, total - discount) + previousDebt).toLocaleString('vi-VN')} đ`;
+        }
     }
 
     function updateRow(row) {
@@ -341,9 +392,15 @@ document.addEventListener('DOMContentLoaded', () => {
     body.querySelectorAll('.detail-line').forEach(bind);
 
     customer?.addEventListener('change', () => {
-        if (!customerPhone) return;
-        customerPhone.value = customer.selectedOptions[0]?.dataset.phone || '';
+        const option = customer.selectedOptions[0];
+        if (customerPhone) customerPhone.value = option?.dataset.phone || '';
+        previousDebt = Number(option?.dataset.debt || 0);
+        if (saleFinance) saleFinance.dataset.previousDebt = String(previousDebt);
+        if (previousDebtOutput) previousDebtOutput.textContent = `${previousDebt.toLocaleString('vi-VN')} đ`;
+        updateTotal();
     });
+
+    discountInput?.addEventListener('input', updateTotal);
 
     addLineButton.addEventListener('click', () => {
         const sourceRow = body.querySelector('.detail-line');

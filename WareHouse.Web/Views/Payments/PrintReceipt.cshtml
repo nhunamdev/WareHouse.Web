@@ -7,6 +7,10 @@
         PaymentMethod.BankTransfer => "Chuyển khoản",
         _ => "Khác"
     };
+    var isAutomatic = Model.Remark == "Thanh toán khi bán hàng";
+    var currentOrderPayment = isAutomatic && Model.Document is not null
+        ? Math.Max(0, Model.Amount - Model.Allocations.Sum(x => x.Amount))
+        : 0;
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -42,7 +46,7 @@
         <div class="col-sm-6"><small class="text-muted d-block">Phương thức</small><strong>@methodName</strong></div>
         <div class="col-12">
             <small class="text-muted d-block">Nội dung</small>
-            <strong>@(Model.Allocations.Count > 0 ? $"Thu công nợ cho {Model.Allocations.Count} đơn bán" : Model.Document is null ? "Thu công nợ khách hàng" : $"Thu công nợ đơn bán ngày {Model.Document.DocumentDate:dd/MM/yyyy}")</strong>
+            <strong>@(isAutomatic ? "Thanh toán khi hoàn thành đơn và thu kèm nợ cũ" : Model.Allocations.Count > 0 ? $"Thu công nợ cho {Model.Allocations.Count} đơn bán" : Model.Document is null ? "Thu công nợ khách hàng" : $"Thu công nợ đơn bán ngày {Model.Document.DocumentDate:dd/MM/yyyy}")</strong>
         </div>
     </div>
     @if (Model.Allocations.Count > 0)
@@ -50,6 +54,10 @@
         <table class="table table-sm table-bordered mb-3">
             <thead><tr><th>Đơn bán</th><th class="text-end">Số tiền thu</th></tr></thead>
             <tbody>
+            @if (currentOrderPayment > 0 && Model.Document is not null)
+            {
+                <tr><td>Đơn hiện tại ngày @Model.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td><td class="text-end">@currentOrderPayment.ToString("N0") đ</td></tr>
+            }
             @foreach (var allocation in Model.Allocations.OrderByDescending(x => x.Document.DocumentDate).ThenByDescending(x => x.DocumentId))
             {
                 <tr><td>Đơn ngày @allocation.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</td><td class="text-end">@allocation.Amount.ToString("N0") đ</td></tr>

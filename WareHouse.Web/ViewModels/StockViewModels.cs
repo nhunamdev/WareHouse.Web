@@ -25,6 +25,12 @@ public class DocumentEditViewModel
     [Display(Name = "Kho đích")]
     public int? ToWarehouseId { get; set; }
 
+    [Range(0, double.MaxValue, ErrorMessage = "Chiết khấu không được âm.")]
+    [Display(Name = "Chiết khấu")]
+    public decimal DiscountAmount { get; set; }
+
+    public decimal PreviousDebtAmount { get; set; }
+
     [Range(0, double.MaxValue, ErrorMessage = "Số tiền đã trả không được âm.")]
     [Display(Name = "Đã thanh toán")]
     public decimal PaidAmount { get; set; }
@@ -46,6 +52,7 @@ public class DocumentEditViewModel
         CustomerPhone = CustomerPhone,
         FromWarehouseId = FromWarehouseId,
         ToWarehouseId = ToWarehouseId,
+        DiscountAmount = DiscountAmount,
         PaidAmount = 0,
         Remark = Remark,
         Details = Details.Where(x => x.ItemId > 0).Select(x => new DocumentDetailInput

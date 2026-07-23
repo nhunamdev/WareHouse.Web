@@ -27,10 +27,8 @@
             <input asp-for="Password" class="form-control" autocomplete="current-password" />
             <span asp-validation-for="Password" class="text-danger"></span>
         </div>
-        <div class="form-check">
-            <input asp-for="RememberMe" class="form-check-input" />
-            <label asp-for="RememberMe" class="form-check-label"></label>
-        </div>
+        <input asp-for="RememberMe" type="hidden" value="true" />
+        <div class="form-text">Phiên đăng nhập được duy trì trong 8 giờ và tự gia hạn khi bạn tiếp tục sử dụng.</div>
         <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
     </form>
     <p class="auth-security-note">Tài khoản sai mật khẩu 5 lần sẽ bị khóa tạm thời 15 phút.</p>

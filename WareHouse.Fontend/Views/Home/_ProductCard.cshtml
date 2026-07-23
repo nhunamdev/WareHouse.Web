@@ -11,7 +11,17 @@
         .Select(x => x.First())
         .ToList();
     var variantsJson = System.Text.Json.JsonSerializer.Serialize(
-        Model.Variants,
+        Model.Variants.Select(variant => new
+        {
+            variant.ItemId,
+            variant.ColorValueId,
+            variant.ColorName,
+            variant.ColorHex,
+            variant.SizeValueId,
+            variant.SizeName,
+            variant.ImageUrl,
+            variant.Stock
+        }),
         new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
 }
 <article class="product-card h-100" data-product-card>
@@ -24,10 +34,13 @@
         {
             <div class="product-placeholder"><span>TA</span></div>
         }
-        <span class="product-badge">@(Model.IsInStock ? "Còn hàng" : "Đặt trước")</span>
+        <span class="product-badge">@(Model.IsInStock ? T["InStock"] : T["PreOrder"])</span>
+        @if (!string.IsNullOrWhiteSpace(Model.Category))
+        {
+            <span class="product-category-badge">@Model.Category</span>
+        }
     </a>
     <div class="product-info">
-        <p class="product-category">@Model.Category</p>
         <h3><a href="@Model.ProductUrl">@Model.Name</a></h3>
 
         @if (colors.Count > 0 || sizes.Count > 0)
@@ -36,15 +49,15 @@
                 @if (colors.Count > 0)
                 {
                     <div class="product-option-row">
-                        <span class="product-option-name">Màu</span>
-                        <div class="product-colors" aria-label="Các màu của @Model.Name">
+                        <span class="product-option-name">@T["Color"]</span>
+                        <div class="product-colors" aria-label="@T["ColorsFor", Model.Name]">
                             @foreach (var color in colors)
                             {
                                 <button type="button"
                                         class="color-dot"
                                         style="--swatch:@color.ColorHex"
                                         title="@color.ColorName"
-                                        aria-label="Màu @color.ColorName"
+                                        aria-label="@T["Color"] @color.ColorName"
                                         data-card-color="@color.ColorValueId">
                                     <span></span>
                                 </button>
@@ -56,22 +69,24 @@
                 @if (sizes.Count > 0)
                 {
                     <div class="product-option-row">
-                        <span class="product-option-name">Size</span>
-                        <div class="product-sizes" aria-label="Các size của @Model.Name">
+                        <span class="product-option-name">@T["Size"]</span>
+                        <div class="product-sizes" aria-label="@T["SizesFor", Model.Name]">
                             @foreach (var size in sizes)
                             {
                                 <button type="button" class="size-chip" data-card-size="@size.SizeValueId">@size.SizeName</button>
                             }
                         </div>
-                        <small data-size-label></small>
                     </div>
                 }
             </div>
         }
 
         <div class="product-bottom">
-            <div><small data-price-caption>Giá từ</small><div class="product-price" data-product-price>@Model.PriceLabel <i>đ</i></div></div>
-            <a class="view-product" href="@Model.ProductUrl">Xem xe <span>→</span></a>
+            <div class="product-contact"><strong>@T["Contact"]</strong></div>
+            <a class="view-product" href="@Model.ProductUrl">
+                <span>@T["ViewDetails"]</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
         </div>
     </div>
     <script type="application/json" data-card-variants>@Html.Raw(variantsJson)</script>

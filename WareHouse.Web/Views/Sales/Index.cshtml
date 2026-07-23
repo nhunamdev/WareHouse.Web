@@ -140,14 +140,14 @@
                         @if (sale.Status == DocumentStatus.Draft)
                         {
                             <div class="sales-payment-status is-pending">
-                                <strong>Chờ xuất hóa đơn</strong>
+                                <strong>Chờ lập phiếu xuất kho</strong>
                                 <small>Chưa ghi nhận doanh thu</small>
                             </div>
                         }
                         else if (sale.Status == DocumentStatus.Invoiced)
                         {
                             <div class="sales-payment-status is-invoiced">
-                                <strong>Đã xuất hóa đơn</strong>
+                                <strong>Đã lập phiếu xuất kho</strong>
                                 <small>Chờ nhập thanh toán</small>
                             </div>
                         }
@@ -155,14 +155,14 @@
                         {
                             <div class="sales-payment-status is-debt">
                                 <strong>Còn nợ @sale.DebtAmount.ToString("N0") đ</strong>
-                                <small>Đã thu @sale.PaidAmount.ToString("N0") đ</small>
+                                <small>Đã thu @((sale.PaidAmount + sale.PreviousDebtPaidAmount).ToString("N0")) đ@(sale.PreviousDebtPaidAmount > 0 ? $" · gồm {sale.PreviousDebtPaidAmount:N0} đ nợ cũ" : null)</small>
                             </div>
                         }
                         else
                         {
                             <div class="sales-payment-status is-paid">
                                 <strong>Đã thanh toán</strong>
-                                <small>Đã thu đủ</small>
+                                <small>Đã thu @((sale.PaidAmount + sale.PreviousDebtPaidAmount).ToString("N0")) đ</small>
                             </div>
                         }
                     </td>

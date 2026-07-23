@@ -335,13 +335,14 @@
         if (select.closest("template") || select.classList.contains("select2-hidden-accessible")) return;
 
         const firstOption = select.options[0];
-        const placeholder = firstOption && (firstOption.value === "" || firstOption.value === "0")
+        const placeholder = select.dataset.placeholder || (firstOption && (firstOption.value === "" || firstOption.value === "0")
             ? firstOption.textContent?.trim()
-            : null;
+            : null);
 
         jq(select).select2({
             width: "100%",
             minimumResultsForSearch: 0,
+            closeOnSelect: !select.multiple,
             placeholder: placeholder || undefined,
             templateResult: renderImageOption,
             templateSelection: renderImageSelection,
@@ -377,7 +378,7 @@
 
     // Select2 emits a jQuery change event. Relay a native event as well so the
     // warehouse/payment filters that use addEventListener keep working.
-    jq(document).on("select2:select select2:clear", selector, function () {
+    jq(document).on("select2:select select2:unselect select2:clear", selector, function () {
         this.dispatchEvent(new Event("change", { bubbles: true }));
     });
 

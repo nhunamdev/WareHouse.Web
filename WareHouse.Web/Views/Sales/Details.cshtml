@@ -3,15 +3,23 @@
     ViewData["Title"] = "Chi tiết bán hàng";
     var canManage = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager);
     var totalQuantity = Model.Details.Sum(x => x.Quantity);
+    var subtotalAmount = Model.SubtotalAmount > 0 || Model.TotalAmount == 0
+        ? Model.SubtotalAmount
+        : Model.Details.Sum(x => x.Amount);
+    var totalPayable = Model.TotalAmount + Model.PreviousDebtAmount;
+    var totalReceived = Model.PaidAmount + Model.PreviousDebtPaidAmount;
+    var totalRemaining = Model.Status == DocumentStatus.Completed
+        ? Math.Max(0, Model.Customer?.Debt ?? 0)
+        : Math.Max(0, totalPayable - totalReceived);
     var customerPhone = string.IsNullOrWhiteSpace(Model.CustomerPhone)
         ? Model.Customer?.Phone
         : Model.CustomerPhone;
     var statusText = Model.Status switch
     {
         DocumentStatus.Completed => "Đã hoàn tất",
-        DocumentStatus.Invoiced => "Đã xuất hóa đơn · Chờ hoàn thành",
+        DocumentStatus.Invoiced => "Đã lập phiếu xuất kho · Chờ hoàn thành",
         DocumentStatus.Cancelled => "Đã hủy",
-        _ => "Chờ xuất hóa đơn"
+        _ => "Chờ lập phiếu xuất kho"
     };
     var statusClass = Model.Status switch
     {
@@ -29,19 +37,19 @@
         {
             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">Sửa đơn</a>
             <form asp-action="IssueInvoice" asp-route-id="@Model.Id" method="post"
-                  data-confirm="Xuất hóa đơn cho đơn hàng này? Đơn vẫn chờ hoàn thành và chưa ghi nhận thanh toán.">
-                <button class="btn btn-sm btn-primary">Xuất hóa đơn</button>
+                  data-confirm="Lập phiếu xuất kho cho đơn hàng này? Đơn vẫn chờ hoàn thành và chưa ghi nhận thanh toán.">
+                <button class="btn btn-sm btn-primary">Lập phiếu xuất kho</button>
             </form>
         }
         @if (Model.Status == DocumentStatus.Invoiced)
         {
-            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại hóa đơn</a>
+            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại phiếu xuất kho</a>
         }
         @if (Model.Status == DocumentStatus.Completed)
         {
-            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại hóa đơn</a>
+            <a asp-action="PrintInvoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-primary">In lại phiếu xuất kho</a>
             <a asp-action="PrintDelivery" asp-route-id="@Model.Id" target="_blank" class="btn btn-sm btn-outline-secondary">In phiếu giao</a>
-            @if (Model.DebtAmount > 0)
+            @if ((Model.Customer?.Debt ?? 0) > 0)
             {
                 <a asp-controller="Payments" asp-action="Create" asp-route-customerId="@Model.CustomerId"
                    asp-route-documentId="@Model.Id" class="btn btn-sm btn-outline-success">Thu công nợ</a>
@@ -64,13 +72,13 @@
 else if (Model.Status == DocumentStatus.Draft)
 {
     <div class="alert alert-warning sales-detail-alert">
-        Đơn hàng đang chờ xuất hóa đơn, chưa trừ tồn kho và chưa tính vào doanh thu.
+        Đơn hàng đang chờ lập phiếu xuất kho, chưa trừ tồn kho và chưa tính vào doanh thu.
     </div>
 }
 else if (Model.Status == DocumentStatus.Invoiced)
 {
     <div class="alert alert-info sales-detail-alert">
-        Hóa đơn đã được xuất nhưng đơn hàng chưa hoàn thành. Thanh toán, tồn kho, doanh thu và công nợ vẫn chưa được ghi nhận.
+        Phiếu xuất kho đã được lập nhưng đơn hàng chưa hoàn thành. Thanh toán, tồn kho, doanh thu và công nợ vẫn chưa được ghi nhận.
     </div>
 }
 
@@ -82,15 +90,15 @@ else if (Model.Status == DocumentStatus.Invoiced)
         <div class="sale-completion-copy">
             <small>Bước cuối</small>
             <strong>Hoàn thành đơn hàng</strong>
-            <span>Nhập số tiền thực tế khách đã thanh toán.</span>
+            <span>Mặc định là toàn bộ tiền đơn và nợ cũ; tiền thu được ưu tiên trừ nợ cũ trước.</span>
         </div>
         <div class="sale-completion-payment">
             <label for="completePaidAmountDisplay" class="form-label">Khách đã thanh toán</label>
             <input id="completePaidAmountDisplay" type="text" inputmode="numeric" autocomplete="off"
-                   value="@Model.TotalAmount.ToString("N0")" class="form-control money-input text-end"
+                   value="@totalPayable.ToString("N0")" class="form-control money-input text-end"
                    required aria-required="true" />
             <input type="hidden" name="paidAmount"
-                   value="@Model.TotalAmount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
+                   value="@totalPayable.ToString("0", System.Globalization.CultureInfo.InvariantCulture)"
                    class="money-value" />
         </div>
         <button class="btn btn-success">Hoàn thành đơn</button>
@@ -121,11 +129,19 @@ else if (Model.Status == DocumentStatus.Invoiced)
     </div>
 
     <div class="sales-detail-finance">
-        <div class="is-total"><small>Tổng tiền</small><strong>@Model.TotalAmount.ToString("N0") <span>đ</span></strong></div>
+        <div><small>Tổng tiền đơn hàng</small><strong>@subtotalAmount.ToString("N0") <span>đ</span></strong></div>
+        <div><small>Chiết khấu</small><strong>@Model.DiscountAmount.ToString("N0") <span>đ</span></strong></div>
+        <div class="@(Model.PreviousDebtAmount > 0 ? "is-debt" : null)"><small>Nợ cũ</small><strong>@Model.PreviousDebtAmount.ToString("N0") <span>đ</span></strong></div>
+        <div class="is-total"><small>Tổng phải thanh toán</small><strong>@totalPayable.ToString("N0") <span>đ</span></strong></div>
         @if (Model.Status == DocumentStatus.Completed)
         {
-            <div class="is-paid"><small>Đã thanh toán</small><strong>@Model.PaidAmount.ToString("N0") <span>đ</span></strong></div>
-            <div class="@(Model.DebtAmount > 0 ? "is-debt" : "is-paid")"><small>Còn nợ</small><strong>@Model.DebtAmount.ToString("N0") <span>đ</span></strong></div>
+            <div class="is-paid"><small>Khách đã thanh toán</small><strong>@totalReceived.ToString("N0") <span>đ</span></strong></div>
+            @if (Model.PreviousDebtPaidAmount > 0)
+            {
+                <div class="is-paid"><small>Đã trừ vào nợ cũ</small><strong>@Model.PreviousDebtPaidAmount.ToString("N0") <span>đ</span></strong></div>
+            }
+            <div class="@(totalRemaining > 0 ? "is-debt" : "is-paid")"><small>Công nợ hiện tại của khách</small><strong>@totalRemaining.ToString("N0") <span>đ</span></strong></div>
+            <div class="@(Model.DebtAmount > 0 ? "is-debt" : "is-paid")"><small>Nợ của đơn này</small><strong>@Model.DebtAmount.ToString("N0") <span>đ</span></strong></div>
         }
         else
         {

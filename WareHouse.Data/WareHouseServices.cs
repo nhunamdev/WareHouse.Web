@@ -147,14 +147,26 @@ public class WareHouseServices(
 
                 entity.Code = model.Code;
                 entity.Name = model.Name;
+                entity.NameEn = model.NameEn;
+                entity.NameDe = model.NameDe;
                 entity.Category = model.Category;
                 entity.Unit = model.Unit;
                 entity.Description = model.Description;
                 entity.ShortDescription = model.ShortDescription;
+                entity.ShortDescriptionEn = model.ShortDescriptionEn;
+                entity.ShortDescriptionDe = model.ShortDescriptionDe;
                 entity.DetailContent = model.DetailContent;
+                entity.DetailContentEn = model.DetailContentEn;
+                entity.DetailContentDe = model.DetailContentDe;
                 entity.SeoTitle = model.SeoTitle;
+                entity.SeoTitleEn = model.SeoTitleEn;
+                entity.SeoTitleDe = model.SeoTitleDe;
                 entity.SeoDescription = model.SeoDescription;
+                entity.SeoDescriptionEn = model.SeoDescriptionEn;
+                entity.SeoDescriptionDe = model.SeoDescriptionDe;
                 entity.SeoKeywords = model.SeoKeywords;
+                entity.SeoKeywordsEn = model.SeoKeywordsEn;
+                entity.SeoKeywordsDe = model.SeoKeywordsDe;
                 entity.IsActive = model.IsActive;
             }
 
@@ -191,6 +203,7 @@ public class WareHouseServices(
         var normalizedItems = itemInputs.Select((item, index) => new
         {
             RowNumber = index + 1,
+            Source = item,
             item.Id,
             item.CostPrice,
             item.SalePrice,
@@ -281,14 +294,26 @@ public class WareHouseServices(
                 {
                     Code = model.Code,
                     Name = model.Name,
+                    NameEn = model.NameEn,
+                    NameDe = model.NameDe,
                     Category = model.Category,
                     Unit = model.Unit,
                     Description = model.Description,
                     ShortDescription = model.ShortDescription,
+                    ShortDescriptionEn = model.ShortDescriptionEn,
+                    ShortDescriptionDe = model.ShortDescriptionDe,
                     DetailContent = model.DetailContent,
+                    DetailContentEn = model.DetailContentEn,
+                    DetailContentDe = model.DetailContentDe,
                     SeoTitle = model.SeoTitle,
+                    SeoTitleEn = model.SeoTitleEn,
+                    SeoTitleDe = model.SeoTitleDe,
                     SeoDescription = model.SeoDescription,
+                    SeoDescriptionEn = model.SeoDescriptionEn,
+                    SeoDescriptionDe = model.SeoDescriptionDe,
                     SeoKeywords = model.SeoKeywords,
+                    SeoKeywordsEn = model.SeoKeywordsEn,
+                    SeoKeywordsDe = model.SeoKeywordsDe,
                     IsActive = true
                 };
                 _db.Products.Add(entity);
@@ -297,14 +322,26 @@ public class WareHouseServices(
             {
                 entity.Code = model.Code;
                 entity.Name = model.Name;
+                entity.NameEn = model.NameEn;
+                entity.NameDe = model.NameDe;
                 entity.Category = model.Category;
                 entity.Unit = model.Unit;
                 entity.Description = model.Description;
                 entity.ShortDescription = model.ShortDescription;
+                entity.ShortDescriptionEn = model.ShortDescriptionEn;
+                entity.ShortDescriptionDe = model.ShortDescriptionDe;
                 entity.DetailContent = model.DetailContent;
+                entity.DetailContentEn = model.DetailContentEn;
+                entity.DetailContentDe = model.DetailContentDe;
                 entity.SeoTitle = model.SeoTitle;
+                entity.SeoTitleEn = model.SeoTitleEn;
+                entity.SeoTitleDe = model.SeoTitleDe;
                 entity.SeoDescription = model.SeoDescription;
+                entity.SeoDescriptionEn = model.SeoDescriptionEn;
+                entity.SeoDescriptionDe = model.SeoDescriptionDe;
                 entity.SeoKeywords = model.SeoKeywords;
+                entity.SeoKeywordsEn = model.SeoKeywordsEn;
+                entity.SeoKeywordsDe = model.SeoKeywordsDe;
                 entity.IsActive = model.IsActive;
             }
 
@@ -316,6 +353,7 @@ public class WareHouseServices(
 
             var existingById = entity.Items.ToDictionary(x => x.Id);
             var reservedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var createdItems = new List<(ProductItemInput Input, Item Entity)>();
             foreach (var input in normalizedItems)
             {
                 if (input.Id > 0)
@@ -347,7 +385,7 @@ public class WareHouseServices(
                     itemCode = await GenerateItemCodeAsync();
                 } while (!reservedCodes.Add(itemCode));
 
-                entity.Items.Add(new Item
+                var newItem = new Item
                 {
                     Code = itemCode,
                     CostPrice = input.CostPrice,
@@ -356,7 +394,9 @@ public class WareHouseServices(
                     ItemAttributes = input.AttributeValueIds
                         .Select(x => new ItemAttribute { AttributeValueId = x })
                         .ToList()
-                });
+                };
+                entity.Items.Add(newItem);
+                createdItems.Add((input.Source, newItem));
             }
 
             // Một lần lưu phân loại cũng là một lần cập nhật sản phẩm.
@@ -366,6 +406,11 @@ public class WareHouseServices(
                 _db.Entry(entity).Property(x => x.UpdatedAt).IsModified = true;
 
             await _db.SaveChangesAsync();
+
+            // Trả ID vừa sinh về đúng dòng nhập để controller có thể quy đổi
+            // khóa giao diện sang Item thật khi lưu gán ảnh nhiều phân loại.
+            foreach (var created in createdItems)
+                created.Input.Id = created.Entity.Id;
 
             var message = model.Id == 0
                 ? $"Đã lưu sản phẩm và {normalizedItems.Count} phân loại."
@@ -900,27 +945,31 @@ public class WareHouseServices(
             items.AddRange(includedItems);
         }
 
-        var selectedItemIds = items.Select(x => x.Id).ToHashSet();
         var selectedProductIds = items.Select(x => x.ProductId).ToHashSet();
+        var colorValueIdByItem = items.ToDictionary(
+            item => item.Id,
+            item => item.ItemAttributes
+                .Where(attribute =>
+                    attribute.AttributeValue.Attribute.Name.Contains("màu", StringComparison.OrdinalIgnoreCase) ||
+                    attribute.AttributeValue.Attribute.Name.Contains("mau", StringComparison.OrdinalIgnoreCase) ||
+                    attribute.AttributeValue.Attribute.Name.Contains("color", StringComparison.OrdinalIgnoreCase))
+                .Select(attribute => (int?)attribute.AttributeValueId)
+                .FirstOrDefault());
         var imageRows = await _db.ProductImages.AsNoTracking()
-            .Where(image => (image.ItemId.HasValue && selectedItemIds.Contains(image.ItemId.Value)) ||
-                            (!image.ItemId.HasValue && selectedProductIds.Contains(image.ProductId)))
-            .Select(image => new
-            {
-                image.Id,
-                image.ProductId,
-                image.ItemId,
-                image.RelativePath,
-                image.IsPrimary,
-                image.SortOrder
-            })
+            .Include(image => image.ItemAssignments)
+            .Where(image => selectedProductIds.Contains(image.ProductId))
             .ToListAsync();
         var imagePathByItem = items.ToDictionary(
             item => item.Id,
             item => imageRows
-                .Where(image => image.ItemId == item.Id ||
-                                (!image.ItemId.HasValue && image.ProductId == item.ProductId))
-                .OrderBy(image => image.ItemId == item.Id ? 0 : 1)
+                .Where(image => image.ItemAssignments.Any(x => x.ItemId == item.Id) ||
+                                image.ItemId == item.Id ||
+                                (colorValueIdByItem[item.Id].HasValue && image.ColorValueId == colorValueIdByItem[item.Id]) ||
+                                (image.ItemAssignments.Count == 0 && !image.ItemId.HasValue &&
+                                 !image.ColorValueId.HasValue && image.ProductId == item.ProductId))
+                .OrderBy(image => image.ItemAssignments.Any(x => x.ItemId == item.Id) ? 0 :
+                                  image.ItemId == item.Id ||
+                                  (colorValueIdByItem[item.Id].HasValue && image.ColorValueId == colorValueIdByItem[item.Id]) ? 1 : 2)
                 .ThenByDescending(image => image.IsPrimary)
                 .ThenBy(image => image.SortOrder)
                 .ThenBy(image => image.Id)
@@ -1619,10 +1668,27 @@ public class WareHouseServices(
         var validation = await ValidateDocumentInputAsync(input);
         if (!validation.Success) return validation;
         var details = NormalizeDetails(input.Details);
-        var total = details.Sum(x => x.Quantity * x.Price);
-        if (input.DocumentType == StockDocumentType.Adjust) total = details.Sum(x => Math.Abs(x.Quantity) * x.Price);
-        if (input.DocumentType == StockDocumentType.Sale && input.PaidAmount > total)
-            return ServiceResult.Fail("Số tiền đã trả không được vượt tổng tiền.");
+        var subtotal = details.Sum(x => x.Quantity * x.Price);
+        if (input.DocumentType == StockDocumentType.Adjust)
+            subtotal = details.Sum(x => Math.Abs(x.Quantity) * x.Price);
+        var discount = input.DocumentType == StockDocumentType.Sale ? input.DiscountAmount : 0;
+        if (discount > subtotal)
+            return ServiceResult.Fail("Chiết khấu không được vượt tổng tiền đơn hàng.");
+        var total = subtotal - discount;
+        var previousDebt = 0m;
+        if (input.DocumentType == StockDocumentType.Sale && input.CustomerId.HasValue)
+        {
+            var customerDebt = await _db.Customers.AsNoTracking()
+                .Where(x => x.Id == input.CustomerId.Value)
+                .Select(x => x.Debt)
+                .FirstOrDefaultAsync();
+            var trackedDebt = await _db.StockDocuments.AsNoTracking()
+                .Where(x => x.Id != input.Id && x.CustomerId == input.CustomerId.Value &&
+                            x.DocumentType == StockDocumentType.Sale &&
+                            x.Status == DocumentStatus.Completed && x.DebtAmount > 0)
+                .SumAsync(x => (decimal?)x.DebtAmount) ?? 0;
+            previousDebt = Math.Min(customerDebt, trackedDebt);
+        }
 
         try
         {
@@ -1657,6 +1723,10 @@ public class WareHouseServices(
             document.FromWarehouseId = input.FromWarehouseId;
             document.ToWarehouseId = input.ToWarehouseId;
             document.Remark = CleanNullable(input.Remark);
+            document.SubtotalAmount = subtotal;
+            document.DiscountAmount = discount;
+            document.PreviousDebtAmount = previousDebt;
+            document.PreviousDebtPaidAmount = 0;
             document.TotalAmount = total;
             document.PaidAmount = 0;
             document.DebtAmount = 0;
@@ -1699,16 +1769,19 @@ public class WareHouseServices(
             x.Id == id && x.DocumentType == StockDocumentType.Sale);
         if (document is null) return ServiceResult.Fail("Không tìm thấy đơn hàng.");
         if (document.Status == DocumentStatus.Cancelled)
-            return ServiceResult.Fail("Đơn hàng đã bị hủy nên không thể xuất hóa đơn.");
+            return ServiceResult.Fail("Đơn hàng đã bị hủy nên không thể lập phiếu xuất kho.");
         if (document.Status == DocumentStatus.Completed)
-            return ServiceResult.Ok("Đơn hàng đã hoàn thành; có thể in lại hóa đơn.", document.Id);
+            return ServiceResult.Ok("Đơn hàng đã hoàn thành; có thể in lại phiếu xuất kho.", document.Id);
         if (document.Status == DocumentStatus.Draft)
         {
+            document.PreviousDebtAmount = document.CustomerId.HasValue
+                ? await GetCustomerOutstandingDebtAsync(document.CustomerId.Value)
+                : 0;
             document.Status = DocumentStatus.Invoiced;
             await _db.SaveChangesAsync();
         }
         return ServiceResult.Ok(
-            "Đã xuất hóa đơn. Đơn hàng vẫn đang chờ nhập thanh toán và hoàn thành.",
+            "Đã lập phiếu xuất kho. Đơn hàng vẫn đang chờ nhập thanh toán và hoàn thành.",
             document.Id);
     }
     public Task<ServiceResult> CreateReturnAsync(DocumentInput input) => SaveAsTypeAsync(input, StockDocumentType.Return);
@@ -1806,13 +1879,16 @@ public class WareHouseServices(
             : DocumentStatus.Draft;
         if (document.Status != expectedStatus)
             return ServiceResult.Fail(document.DocumentType == StockDocumentType.Sale
-                ? "Đơn hàng cần được xuất hóa đơn trước khi hoàn thành."
+                ? "Đơn hàng cần được lập phiếu xuất kho trước khi hoàn thành."
                 : "Chỉ chứng từ nháp mới được hoàn tất.");
+        decimal? receivedAmount = null;
         if (document.DocumentType == StockDocumentType.Sale)
         {
             if (!paidAmount.HasValue)
                 return ServiceResult.Fail("Vui lòng nhập số tiền khách đã thanh toán.");
-            document.PaidAmount = paidAmount.Value;
+            if (paidAmount.Value < 0)
+                return ServiceResult.Fail("Số tiền khách thanh toán không được âm.");
+            receivedAmount = paidAmount.Value;
         }
         var input = new DocumentInput
         {
@@ -1823,20 +1899,19 @@ public class WareHouseServices(
             CustomerPhone = document.CustomerPhone,
             FromWarehouseId = document.FromWarehouseId,
             ToWarehouseId = document.ToWarehouseId,
-            PaidAmount = document.PaidAmount,
+            DiscountAmount = document.DiscountAmount,
+            PaidAmount = receivedAmount ?? document.PaidAmount,
             Details = document.Details.Select(x => new DocumentDetailInput
                 { ItemId = x.ItemId, Quantity = x.Quantity, Price = x.Price }).ToList()
         };
         var validation = await ValidateDocumentInputAsync(input);
         if (!validation.Success) return validation;
 
-        document.TotalAmount = document.Details.Sum(x =>
+        document.SubtotalAmount = document.Details.Sum(x =>
             (document.DocumentType == StockDocumentType.Adjust ? Math.Abs(x.Quantity) : x.Quantity) * x.Price);
-        document.DebtAmount = document.DocumentType == StockDocumentType.Sale
-            ? document.TotalAmount - document.PaidAmount
-            : 0;
-        if (document.DocumentType == StockDocumentType.Sale && document.PaidAmount > document.TotalAmount)
-            return ServiceResult.Fail("Số tiền đã trả không được vượt tổng tiền.");
+        if (document.DiscountAmount > document.SubtotalAmount)
+            return ServiceResult.Fail("Chiết khấu không được vượt tổng tiền đơn hàng.");
+        document.TotalAmount = document.SubtotalAmount - document.DiscountAmount;
         foreach (var detail in document.Details)
             detail.Amount = (document.DocumentType == StockDocumentType.Adjust
                 ? Math.Abs(detail.Quantity) : detail.Quantity) * detail.Price;
@@ -1851,20 +1926,57 @@ public class WareHouseServices(
         else if (document.DocumentType == StockDocumentType.Sale)
         {
             var customer = document.Customer!;
-            customer.Debt += document.DebtAmount;
-            if (document.PaidAmount > 0)
-            {
-                _db.Payments.Add(new Payment
+            var outstandingSales = await _db.StockDocuments
+                .Where(x => x.Id != document.Id && x.CustomerId == customer.Id &&
+                            x.DocumentType == StockDocumentType.Sale &&
+                            x.Status == DocumentStatus.Completed && x.DebtAmount > 0)
+                .OrderBy(x => x.DocumentDate)
+                .ThenBy(x => x.Id)
+                .ToListAsync();
+            var trackedDebt = outstandingSales.Sum(x => x.DebtAmount);
+            var previousDebt = Math.Min(customer.Debt, trackedDebt);
+            var totalPayable = document.TotalAmount + previousDebt;
+            var received = receivedAmount!.Value;
+            if (received > totalPayable)
+                return ServiceResult.Fail("Số tiền khách thanh toán không được vượt tổng phải thanh toán.");
+
+            document.PreviousDebtAmount = previousDebt;
+            var remainingForOldDebt = Math.Min(received, previousDebt);
+            var oldDebtPaid = 0m;
+            var autoPayment = received > 0
+                ? new Payment
                 {
                     CustomerId = customer.Id,
                     Document = document,
-                    Amount = document.PaidAmount,
+                    Amount = received,
                     PaymentDate = DateTime.Now,
                     PaymentMethod = PaymentMethod.Cash,
                     Status = PaymentStatus.Completed,
-                    Remark = "Thanh toán khi bán hàng",
+                    Remark = "Thanh toán khi bán hàng"
+                }
+                : null;
+
+            foreach (var outstandingSale in outstandingSales)
+            {
+                if (remainingForOldDebt <= 0) break;
+                var allocated = Math.Min(remainingForOldDebt, outstandingSale.DebtAmount);
+                outstandingSale.PaidAmount += allocated;
+                outstandingSale.DebtAmount -= allocated;
+                remainingForOldDebt -= allocated;
+                oldDebtPaid += allocated;
+                autoPayment!.Allocations.Add(new PaymentAllocation
+                {
+                    Document = outstandingSale,
+                    Amount = allocated
                 });
             }
+
+            var currentOrderPaid = received - oldDebtPaid;
+            document.PreviousDebtPaidAmount = oldDebtPaid;
+            document.PaidAmount = currentOrderPaid;
+            document.DebtAmount = document.TotalAmount - currentOrderPaid;
+            customer.Debt = Math.Max(0, customer.Debt - oldDebtPaid) + document.DebtAmount;
+            if (autoPayment is not null) _db.Payments.Add(autoPayment);
         }
         else if (document.DocumentType == StockDocumentType.Return)
         {
@@ -1886,46 +1998,22 @@ public class WareHouseServices(
     {
         try
         {
+            if (_db.Database.CurrentTransaction is not null)
+                return await CancelDocumentCoreAsync(id);
+
             var strategy = _db.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
                 await using var transaction = await _db.Database.BeginTransactionAsync();
-                var document = await _db.StockDocuments.Include(x => x.Details)
-                    .Include(x => x.Customer).Include(x => x.Payments)
-                    .Include(x => x.PaymentAllocations).ThenInclude(x => x.Payment)
-                    .FirstOrDefaultAsync(x => x.Id == id);
-                if (document is null) return ServiceResult.Fail("Không tìm thấy chứng từ.");
-                if (document.Status == DocumentStatus.Cancelled)
-                    return ServiceResult.Fail("Chứng từ đã bị hủy.");
-                if (document.Status is DocumentStatus.Draft or DocumentStatus.Invoiced)
+                var result = await CancelDocumentCoreAsync(id);
+                if (!result.Success)
                 {
-                    document.Status = DocumentStatus.Cancelled;
-                    await _db.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return ServiceResult.Ok("Đã hủy đơn/chứng từ đang chờ xử lý.", document.Id);
+                    await transaction.RollbackAsync();
+                    _db.ChangeTracker.Clear();
+                    return result;
                 }
-
-                if (document.DocumentType == StockDocumentType.Sale &&
-                    (document.Payments.Any(x => x.Remark != "Thanh toán khi bán hàng") ||
-                     document.PaymentAllocations.Any(x => x.Payment.Status != PaymentStatus.Cancelled)))
-                    return ServiceResult.Fail("Đơn bán đã có phiếu thu phát sinh. Hãy xóa các phiếu thu trước khi hủy đơn bán.");
-
-                var stockResult = await ApplyDocumentStockAsync(document, reverse: true);
-                if (!stockResult.Success) return stockResult;
-                if (document.DocumentType == StockDocumentType.Sale && document.Customer is not null)
-                {
-                    document.Customer.Debt = Math.Max(0, document.Customer.Debt - document.DebtAmount);
-                    _db.Payments.RemoveRange(document.Payments.Where(x => x.Remark == "Thanh toán khi bán hàng"));
-                }
-                else if (document.DocumentType == StockDocumentType.Return && document.Customer is not null)
-                {
-                    document.Customer.Debt += document.DebtAmount;
-                }
-
-                document.Status = DocumentStatus.Cancelled;
-                await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return ServiceResult.Ok("Đã hủy chứng từ và đảo tồn kho.", document.Id);
+                return result;
             });
         }
         catch (DbUpdateConcurrencyException ex)
@@ -1938,6 +2026,55 @@ public class WareHouseServices(
             _logger.LogError(ex, "Lỗi transaction khi hủy chứng từ {DocumentId}", id);
             return ServiceResult.Fail("Không thể hủy chứng từ. Giao dịch đã được hoàn tác.");
         }
+    }
+
+    private async Task<ServiceResult> CancelDocumentCoreAsync(long id)
+    {
+        var document = await _db.StockDocuments.Include(x => x.Details)
+            .Include(x => x.Customer)
+            .Include(x => x.Payments).ThenInclude(x => x.Allocations).ThenInclude(x => x.Document)
+            .Include(x => x.PaymentAllocations).ThenInclude(x => x.Payment)
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (document is null) return ServiceResult.Fail("Không tìm thấy chứng từ.");
+        if (document.Status == DocumentStatus.Cancelled)
+            return ServiceResult.Fail("Chứng từ đã bị hủy.");
+        if (document.Status is DocumentStatus.Draft or DocumentStatus.Invoiced)
+        {
+            document.Status = DocumentStatus.Cancelled;
+            await _db.SaveChangesAsync();
+            return ServiceResult.Ok("Đã hủy đơn/chứng từ đang chờ xử lý.", document.Id);
+        }
+
+        if (document.DocumentType == StockDocumentType.Sale &&
+            (document.Payments.Any(x => x.Remark != "Thanh toán khi bán hàng") ||
+             document.PaymentAllocations.Any(x => x.Payment.Status != PaymentStatus.Cancelled)))
+            return ServiceResult.Fail("Đơn bán đã có phiếu thu phát sinh. Hãy xóa các phiếu thu trước khi hủy đơn bán.");
+
+        var stockResult = await ApplyDocumentStockAsync(document, reverse: true);
+        if (!stockResult.Success) return stockResult;
+        if (document.DocumentType == StockDocumentType.Sale && document.Customer is not null)
+        {
+            var automaticPayments = document.Payments
+                .Where(x => x.Remark == "Thanh toán khi bán hàng")
+                .ToList();
+            var restoredOldDebt = 0m;
+            foreach (var allocation in automaticPayments.SelectMany(x => x.Allocations))
+            {
+                allocation.Document.PaidAmount = Math.Max(0, allocation.Document.PaidAmount - allocation.Amount);
+                allocation.Document.DebtAmount += allocation.Amount;
+                restoredOldDebt += allocation.Amount;
+            }
+            document.Customer.Debt = Math.Max(0, document.Customer.Debt - document.DebtAmount) + restoredOldDebt;
+            _db.Payments.RemoveRange(automaticPayments);
+        }
+        else if (document.DocumentType == StockDocumentType.Return && document.Customer is not null)
+        {
+            document.Customer.Debt += document.DebtAmount;
+        }
+
+        document.Status = DocumentStatus.Cancelled;
+        await _db.SaveChangesAsync();
+        return ServiceResult.Ok("Đã hủy chứng từ và đảo tồn kho.", document.Id);
     }
 
     #endregion
@@ -2450,6 +2587,19 @@ public class WareHouseServices(
             .OrderByDescending(x => x.DocumentDate).ThenByDescending(x => x.Id).ToListAsync();
     }
 
+    public async Task<decimal> GetCustomerOutstandingDebtAsync(int customerId)
+    {
+        var customerDebt = await _db.Customers.AsNoTracking()
+            .Where(x => x.Id == customerId)
+            .Select(x => x.Debt)
+            .FirstOrDefaultAsync();
+        var trackedDebt = await _db.StockDocuments.AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.DocumentType == StockDocumentType.Sale &&
+                        x.Status == DocumentStatus.Completed && x.DebtAmount > 0)
+            .SumAsync(x => (decimal?)x.DebtAmount) ?? 0;
+        return Math.Min(customerDebt, trackedDebt);
+    }
+
     #endregion
 
     #region Dashboard and reports
@@ -2773,6 +2923,9 @@ public class WareHouseServices(
         else if (details.Any(x => x.Quantity <= 0))
             return ServiceResult.Fail("Số lượng phải lớn hơn 0.");
         if (input.PaidAmount < 0) return ServiceResult.Fail("Số tiền đã trả không được âm.");
+        if (input.DiscountAmount < 0) return ServiceResult.Fail("Chiết khấu không được âm.");
+        if (input.DocumentType != StockDocumentType.Sale && input.DiscountAmount != 0)
+            return ServiceResult.Fail("Chỉ đơn bán hàng mới được nhập chiết khấu.");
         var itemIds = details.Select(x => x.ItemId).Distinct().ToList();
         if (await _db.Items.CountAsync(x => itemIds.Contains(x.Id) && x.IsActive) != itemIds.Count)
             return ServiceResult.Fail("Có phân loại sản phẩm không tồn tại hoặc đã ngừng sử dụng.");
@@ -3021,10 +3174,22 @@ public class WareHouseServices(
 
     private static void NormalizeProductContent(Product model)
     {
+        model.NameEn = CleanNullable(model.NameEn);
+        model.NameDe = CleanNullable(model.NameDe);
+        model.ShortDescriptionEn = CleanNullable(model.ShortDescriptionEn);
+        model.ShortDescriptionDe = CleanNullable(model.ShortDescriptionDe);
+        model.DetailContentEn = CleanNullable(model.DetailContentEn);
+        model.DetailContentDe = CleanNullable(model.DetailContentDe);
         model.Description = model.ShortDescription;
         model.SeoTitle = model.Name;
         model.SeoDescription = Limit(model.ShortDescription ?? PlainText(model.DetailContent), 320);
         model.SeoKeywords = BuildProductKeywords(model.Name, model.Category, model.ShortDescription);
+        model.SeoTitleEn = model.NameEn;
+        model.SeoDescriptionEn = Limit(model.ShortDescriptionEn ?? PlainText(model.DetailContentEn), 320);
+        model.SeoKeywordsEn = BuildProductKeywords(model.NameEn, model.ShortDescriptionEn);
+        model.SeoTitleDe = model.NameDe;
+        model.SeoDescriptionDe = Limit(model.ShortDescriptionDe ?? PlainText(model.DetailContentDe), 320);
+        model.SeoKeywordsDe = BuildProductKeywords(model.NameDe, model.ShortDescriptionDe);
     }
 
     private static string? PlainText(string? html)

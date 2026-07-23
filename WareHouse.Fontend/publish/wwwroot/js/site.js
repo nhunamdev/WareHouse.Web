@@ -1,15 +1,15 @@
 (function () {
     'use strict';
-
-    const currency = value => `${new Intl.NumberFormat('vi-VN').format(Number(value) || 0)} đ`;
+    const i18n = window.storeI18n || {};
+    const formatNumber = value => new Intl.NumberFormat(i18n.locale || 'vi-VN').format(value);
+    const formatText = (template, ...values) => values.reduce(
+        (text, value, index) => text.replace(`{${index}}`, value),
+        template || '');
 
     function setupProductCards() {
         document.querySelectorAll('[data-product-card]').forEach(card => {
             const image = card.querySelector('[data-product-image]');
-            const price = card.querySelector('[data-product-price]');
-            const priceCaption = card.querySelector('[data-price-caption]');
             const colorLabel = card.querySelector('[data-color-label]');
-            const sizeLabel = card.querySelector('[data-size-label]');
             const json = card.querySelector('[data-card-variants]');
             let variants = [];
             try { variants = JSON.parse(json?.textContent || '[]'); } catch { variants = []; }
@@ -52,10 +52,7 @@
                 });
 
                 if (image && selectedVariant.imageUrl) image.src = selectedVariant.imageUrl;
-                if (price) price.innerHTML = `${new Intl.NumberFormat('vi-VN').format(Number(selectedVariant.price || 0))} <i>đ</i>`;
-                if (priceCaption) priceCaption.textContent = 'Giá';
                 if (colorLabel) colorLabel.textContent = selectedVariant.colorName || '';
-                if (sizeLabel) sizeLabel.textContent = selectedVariant.sizeName || '';
             };
 
             card.querySelectorAll('[data-card-color]').forEach(button => {
@@ -108,22 +105,21 @@
     }
 
     function applyVariant(variant) {
-        const price = Number(variant.salePrice || 0);
         const stock = Number(variant.stock || 0);
-        const priceElement = document.querySelector('[data-detail-price]');
         const stockElement = document.querySelector('[data-detail-stock]');
         const message = document.querySelector('[data-combination-message]');
 
-        if (priceElement) priceElement.textContent = currency(price);
         if (stockElement) stockElement.textContent = stock > 0
-            ? `Còn ${new Intl.NumberFormat('vi-VN').format(stock)} tại cửa hàng`
-            : 'Mẫu này nhận đặt trước';
+            ? formatText(i18n.stockOnly, formatNumber(stock))
+            : i18n.selectedModelPreOrder;
         if (variant.imageUrl) {
             const cover = document.querySelector('[data-detail-cover] img');
             if (cover) cover.src = variant.imageUrl;
         }
         if (message) {
-            message.textContent = `${variant.label || 'Mẫu tiêu chuẩn'} · ${stock > 0 ? `còn ${new Intl.NumberFormat('vi-VN').format(stock)}` : 'nhận đặt trước'}`;
+            message.textContent = stock > 0
+                ? formatText(i18n.selectedVariantInStock, variant.label || i18n.standardModel, formatNumber(stock))
+                : formatText(i18n.selectedVariantPreOrder, variant.label || i18n.standardModel);
             message.classList.add('is-ready');
         }
     }
@@ -167,7 +163,7 @@
                 const groupId = Number(group.dataset.attributeGroup);
                 const active = group.querySelector(`[data-value-id="${selected.get(groupId)}"]`);
                 const label = group.querySelector('[data-selected-label]');
-                if (label) label.textContent = active?.dataset.valueName || 'Chưa chọn';
+                if (label) label.textContent = active?.dataset.valueName || i18n.notSelected;
             });
 
             const complete = groupIds.every(id => selected.has(id));
@@ -179,7 +175,7 @@
             } else {
                 const message = document.querySelector('[data-combination-message]');
                 if (message) {
-                    message.textContent = 'Chọn đủ phân loại để xem giá và tình trạng hàng.';
+                    message.textContent = i18n.chooseVariant;
                     message.classList.remove('is-ready');
                 }
             }
@@ -194,8 +190,162 @@
         render();
     }
 
+    function setupSiteSearch() {
+        document.querySelectorAll('[data-site-search]').forEach(form => {
+            const input = form.querySelector('input[name="q"]');
+            const suggestions = form.querySelector('[data-search-suggestions]');
+            if (!input || !suggestions) return;
+
+            let timer = 0;
+            let request = null;
+            let activeIndex = -1;
+
+            const close = () => {
+                suggestions.hidden = true;
+                suggestions.replaceChildren();
+                input.setAttribute('aria-expanded', 'false');
+                activeIndex = -1;
+            };
+
+            const setActive = index => {
+                const options = [...suggestions.querySelectorAll('a[role="option"]')];
+                if (!options.length) return;
+                activeIndex = (index + options.length) % options.length;
+                options.forEach((option, optionIndex) => {
+                    const isActive = optionIndex === activeIndex;
+                    option.classList.toggle('active', isActive);
+                    option.setAttribute('aria-selected', String(isActive));
+                });
+                options[activeIndex].scrollIntoView({ block: 'nearest' });
+            };
+
+            const showMessage = message => {
+                const item = document.createElement('div');
+                item.className = 'search-suggestion-message';
+                item.textContent = message;
+                suggestions.replaceChildren(item);
+                suggestions.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            };
+
+            const render = items => {
+                suggestions.replaceChildren();
+                activeIndex = -1;
+                if (!items.length) {
+                    showMessage(i18n.noSuggestions);
+                    return;
+                }
+
+                items.forEach(item => {
+                    const link = document.createElement('a');
+                    link.className = 'search-suggestion-item';
+                    link.href = item.productUrl;
+                    link.setAttribute('role', 'option');
+                    link.setAttribute('aria-selected', 'false');
+
+                    const media = document.createElement('span');
+                    media.className = 'search-suggestion-media';
+                    if (item.imageUrl) {
+                        const image = document.createElement('img');
+                        image.src = item.imageUrl;
+                        image.alt = '';
+                        media.appendChild(image);
+                    } else {
+                        media.textContent = 'TA';
+                    }
+
+                    const text = document.createElement('span');
+                    text.className = 'search-suggestion-text';
+                    const name = document.createElement('strong');
+                    name.textContent = item.name;
+                    text.appendChild(name);
+                    if (item.category) {
+                        const category = document.createElement('small');
+                        category.textContent = item.category;
+                        text.appendChild(category);
+                    }
+
+                    const arrow = document.createElement('span');
+                    arrow.className = 'search-suggestion-arrow';
+                    arrow.textContent = '›';
+                    link.append(media, text, arrow);
+                    suggestions.appendChild(link);
+                });
+
+                suggestions.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+            };
+
+            const loadSuggestions = () => {
+                const query = input.value.trim();
+                window.clearTimeout(timer);
+                request?.abort();
+                if (query.length < 2) {
+                    close();
+                    return;
+                }
+
+                timer = window.setTimeout(async () => {
+                    request = new AbortController();
+                    showMessage(i18n.searching);
+                    try {
+                        const endpoint = form.dataset.suggestionsUrl || '/api/tim-kiem-goi-y';
+                        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {
+                            headers: { Accept: 'application/json' },
+                            signal: request.signal
+                        });
+                        if (!response.ok) throw new Error('Search request failed');
+                        render(await response.json());
+                    } catch (error) {
+                        if (error.name !== 'AbortError') close();
+                    }
+                }, 220);
+            };
+
+            input.addEventListener('input', loadSuggestions);
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length >= 2 && suggestions.childElementCount === 0)
+                    loadSuggestions();
+            });
+            input.addEventListener('keydown', event => {
+                const options = [...suggestions.querySelectorAll('a[role="option"]')];
+                if (event.key === 'ArrowDown' && options.length) {
+                    event.preventDefault();
+                    setActive(activeIndex + 1);
+                } else if (event.key === 'ArrowUp' && options.length) {
+                    event.preventDefault();
+                    setActive(activeIndex - 1);
+                } else if (event.key === 'Enter' && activeIndex >= 0 && options[activeIndex]) {
+                    event.preventDefault();
+                    window.location.href = options[activeIndex].href;
+                } else if (event.key === 'Escape') {
+                    close();
+                }
+            });
+            form.addEventListener('submit', event => {
+                if (!input.value.trim()) {
+                    event.preventDefault();
+                    input.focus();
+                }
+            });
+            document.addEventListener('click', event => {
+                if (!form.contains(event.target)) close();
+            });
+        });
+    }
+
     function setupGlobalActions() {
         document.addEventListener('click', event => {
+            const mobileNavClose = event.target.closest('[data-mobile-nav-close]');
+            if (mobileNavClose) {
+                const menu = document.querySelector('#storeNav');
+                if (menu && window.bootstrap?.Offcanvas) {
+                    event.preventDefault();
+                    window.bootstrap.Offcanvas.getOrCreateInstance(menu).hide();
+                }
+                return;
+            }
+
             const mobileNavLink = event.target.closest('#storeNav a');
             if (mobileNavLink && window.innerWidth < 992) {
                 const menu = document.querySelector('#storeNav');
@@ -220,5 +370,6 @@
 
     setupProductCards();
     setupCombinationPicker();
+    setupSiteSearch();
     setupGlobalActions();
 }());

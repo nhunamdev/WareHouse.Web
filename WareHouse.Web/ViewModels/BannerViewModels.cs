@@ -12,6 +12,14 @@ public sealed class BannerEditViewModel
     [Display(Name = "Tiêu đề")]
     public string Title { get; set; } = string.Empty;
 
+    [StringLength(200)]
+    [Display(Name = "Tiêu đề tiếng Anh")]
+    public string? TitleEn { get; set; }
+
+    [StringLength(200)]
+    [Display(Name = "Tiêu đề tiếng Đức")]
+    public string? TitleDe { get; set; }
+
     [StringLength(1000)]
     [Display(Name = "URL khi nhấn")]
     public string? Url { get; set; }

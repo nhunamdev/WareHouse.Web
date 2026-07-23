@@ -1,7 +1,7 @@
 @model StoreCategoryViewModel
 @{
     ViewData["Title"] = $"{Model.Name} | Xe đạp Tuệ Anh";
-    ViewData["MetaDescription"] = $"Xem các sản phẩm {Model.Name.ToLowerInvariant()} tại Xe đạp Tuệ Anh. Hình ảnh, màu sắc, size và giá bán rõ ràng.";
+    ViewData["MetaDescription"] = T["CategoryMeta", Model.Name.ToLowerInvariant()];
     var canonicalUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Model.Url}";
 }
 
@@ -15,26 +15,29 @@
 }
 
 <section class="category-page">
-    <div class="container-xl">
-        <nav class="breadcrumb-store mb-3"><a href="/">Trang chủ</a><span>/</span><strong>@Model.Name</strong></nav>
+    <div class="container-xxl">
+        <nav class="breadcrumb-store"><a href="@StoreCulture.Path("/")">@T["Home"]</a><span>/</span><strong>@Model.Name</strong></nav>
         <div class="category-page-header">
-            <div>
-                <span class="eyebrow">Danh mục sản phẩm</span>
-                <h1>@Model.Name</h1>
-                <p>@Model.TotalProducts sản phẩm, ưu tiên mẫu được mua nhiều nhất.</p>
-            </div>
-            <form class="catalog-search" method="get" action="@Model.Url">
-                <input name="q" value="@Model.Query" placeholder="Tìm trong @Model.Name.ToLowerInvariant()..." aria-label="Tìm sản phẩm" />
-                <button type="submit" aria-label="Tìm kiếm">⌕</button>
-            </form>
+            <h1>@Model.Name</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Query))
+            {
+                <a class="clear-filter" href="@Model.Url">@T["ClearFilter", Model.Query]</a>
+            }
         </div>
 
         @if (Model.Products.Count == 0)
         {
             <div class="empty-state">
-                <h3>Chưa tìm thấy sản phẩm</h3>
-                <p>Danh mục này chưa có sản phẩm phù hợp với từ khóa.</p>
-                <a class="btn btn-dark rounded-pill" href="@Model.Url">Xem tất cả @Model.Name.ToLowerInvariant()</a>
+                <h3>@T["NoProducts"]</h3>
+                @if (!string.IsNullOrWhiteSpace(Model.Query))
+                {
+                    <p>@T["NoMatchingProducts", Model.Query]</p>
+                    <a class="btn btn-dark rounded-pill" href="@Model.Url">@T["ViewAllCategory", Model.Name.ToLowerInvariant()]</a>
+                }
+                else
+                {
+                    <p>@T["CategoryUpdating"]</p>
+                }
             </div>
         }
         else
@@ -42,7 +45,7 @@
             <div class="row g-4">
                 @foreach (var product in Model.Products)
                 {
-                    <div class="col-sm-6 col-xl-4"><partial name="_ProductCard" model="product" /></div>
+                    <div class="col-sm-6 col-lg-4 col-xxl-3"><partial name="_ProductCard" model="product" /></div>
                 }
             </div>
         }

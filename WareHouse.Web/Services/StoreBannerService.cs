@@ -82,6 +82,8 @@ public sealed class StoreBannerService
 
             banner ??= new StoreBanner();
             banner.Title = title;
+            banner.TitleEn = string.IsNullOrWhiteSpace(model.TitleEn) ? null : model.TitleEn.Trim();
+            banner.TitleDe = string.IsNullOrWhiteSpace(model.TitleDe) ? null : model.TitleDe.Trim();
             banner.Url = url;
             banner.SortOrder = Math.Max(0, model.SortOrder);
             banner.IsActive = model.IsActive;

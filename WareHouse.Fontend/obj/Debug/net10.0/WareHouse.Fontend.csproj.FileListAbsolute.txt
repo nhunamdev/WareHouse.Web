@@ -183,5 +183,8 @@ D:\Name_Manager\WareHouse.Web\.verify\bin\Debug\net10.0\WareHouse.Fontend.deps.j
 D:\Name_Manager\WareHouse.Web\.verify\bin\Debug\net10.0\WareHouse.Fontend.runtimeconfig.json
 D:\Name_Manager\WareHouse.Web\.verify\bin\Debug\net10.0\WareHouse.Fontend.dll
 D:\Name_Manager\WareHouse.Web\.verify\bin\Debug\net10.0\WareHouse.Fontend.pdb
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Debug\net10.0\compressed\cijoawvaeb-{0}-m11idamziy-m11idamziy.gz
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Debug\net10.0\compressed\2pw8vtnmsr-{0}-re7i4y2gxx-re7i4y2gxx.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Debug\net10.0\appsettings.Production.json
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Debug\net10.0\themes\default\images\ic_logo_tueanh.png
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Debug\net10.0\WareHouse.Fontend.sourcelink.json
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Debug\net10.0\compressed\cijoawvaeb-{0}-hwfa12c9j7-hwfa12c9j7.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Debug\net10.0\compressed\2pw8vtnmsr-{0}-gkfu8fep3y-gkfu8fep3y.gz

@@ -5,18 +5,35 @@
     var categories = ViewBag.Categories as IReadOnlyList<string> ?? [];
     var units = ViewBag.Units as IReadOnlyList<string> ?? [];
     var attributeColumnCount = Math.Max(1, Model.AttributeGroups.Count);
-    var productItems = Model.Product.Items
-        .OrderByDescending(x => x.CreatedAt)
-        .ThenByDescending(x => x.Id)
-        .ToList();
-    string ItemImageLabel(Item item)
+    string VariantLabel(ProductItemInput variant)
     {
-        var attributes = item.ItemAttributes
-            .OrderBy(x => x.AttributeValue.Attribute.Name)
-            .ThenBy(x => x.AttributeValue.SortOrder)
-            .Select(x => $"{x.AttributeValue.Attribute.Name}: {x.AttributeValue.Value}");
-        var text = string.Join(", ", attributes);
-        return string.IsNullOrWhiteSpace(text) ? "Mặc định" : text;
+        var labels = Model.AttributeGroups
+            .Select(group => new
+            {
+                group.Name,
+                Value = group.Values.FirstOrDefault(value => variant.AttributeValueIds.Contains(value.Id))?.Value
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Value))
+            .Select(x => $"{x.Name}: {x.Value}")
+            .ToList();
+        return labels.Count > 0 ? string.Join(" · ", labels) : "Phân loại mặc định";
+    }
+
+    HashSet<string> SelectedVariantKeys(ProductImage image)
+    {
+        var assignedItemIds = image.ItemAssignments.Select(x => x.ItemId).ToHashSet();
+        if (assignedItemIds.Count == 0 && image.ItemId.HasValue)
+            assignedItemIds.Add(image.ItemId.Value);
+        if (assignedItemIds.Count == 0 && image.ColorValueId.HasValue)
+        {
+            foreach (var variant in Model.Variants.Where(x => x.AttributeValueIds.Contains(image.ColorValueId.Value)))
+                assignedItemIds.Add(variant.Id);
+        }
+        return Model.Variants
+            .Where(x => assignedItemIds.Contains(x.Id))
+            .Select(x => x.ClientKey)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 }
 
@@ -79,9 +96,43 @@
                 </div>
                 <div class="col-12">
                     <label asp-for="Product.DetailContent" class="form-label">Nội dung chi tiết</label>
-                    <textarea asp-for="Product.DetailContent" rows="10" class="form-control"
-                              placeholder="Thiết kế, công năng, đối tượng sử dụng, bảo hành..."></textarea>
+                    <textarea asp-for="Product.DetailContent" rows="10" class="form-control" data-product-rich-editor
+                               placeholder="Thiết kế, công năng, đối tượng sử dụng, bảo hành..."></textarea>
                     <div class="form-text">Soạn nội dung bằng trình biên tập; nên chia thành các đề mục và đoạn ngắn.</div>
+                </div>
+                <div class="col-12">
+                    <div class="product-language-editor">
+                        <div class="product-language-editor-title">
+                            <strong>Nội dung website đa ngôn ngữ</strong>
+                            <small>Để trống trường nào sẽ tự dùng nội dung tiếng Việt.</small>
+                        </div>
+                        <details class="product-language-panel">
+                            <summary><span>🇬🇧</span> English</summary>
+                            <div class="product-language-panel-body">
+                                <label asp-for="Product.NameEn" class="form-label">Tên sản phẩm tiếng Anh</label>
+                                <input asp-for="Product.NameEn" class="form-control" maxlength="200" placeholder="English product name" />
+
+                                <label asp-for="Product.ShortDescriptionEn" class="form-label mt-3">Mô tả ngắn tiếng Anh</label>
+                                <textarea asp-for="Product.ShortDescriptionEn" rows="2" maxlength="500" class="form-control" placeholder="Short English description..."></textarea>
+
+                                <label asp-for="Product.DetailContentEn" class="form-label mt-3">Nội dung chi tiết tiếng Anh</label>
+                                <textarea asp-for="Product.DetailContentEn" rows="8" class="form-control" data-product-rich-editor placeholder="Detailed English content..."></textarea>
+                            </div>
+                        </details>
+                        <details class="product-language-panel">
+                            <summary><span>🇩🇪</span> Deutsch</summary>
+                            <div class="product-language-panel-body">
+                                <label asp-for="Product.NameDe" class="form-label">Tên sản phẩm tiếng Đức</label>
+                                <input asp-for="Product.NameDe" class="form-control" maxlength="200" placeholder="Deutscher Produktname" />
+
+                                <label asp-for="Product.ShortDescriptionDe" class="form-label mt-3">Mô tả ngắn tiếng Đức</label>
+                                <textarea asp-for="Product.ShortDescriptionDe" rows="2" maxlength="500" class="form-control" placeholder="Kurze deutsche Beschreibung..."></textarea>
+
+                                <label asp-for="Product.DetailContentDe" class="form-label mt-3">Nội dung chi tiết tiếng Đức</label>
+                                <textarea asp-for="Product.DetailContentDe" rows="8" class="form-control" data-product-rich-editor placeholder="Ausführliche deutsche Beschreibung..."></textarea>
+                            </div>
+                        </details>
+                    </div>
                 </div>
                 @if (!isNew)
                 {
@@ -148,8 +199,10 @@
                     @for (var i = 0; i < Model.Variants.Count; i++)
                     {
                         var variant = Model.Variants[i];
-                        <div class="product-variant-row product-create-variant-row" data-variant-row>
+                        <div class="product-variant-row product-create-variant-row"
+                             data-variant-row data-variant-key="@variant.ClientKey">
                             <input asp-for="Variants[i].Id" type="hidden" data-field="Id" />
+                            <input asp-for="Variants[i].ClientKey" type="hidden" data-field="ClientKey" />
                             <div class="product-variant-number" aria-label="Dòng phân loại">
                                 <span class="variant-row-number">@(i + 1)</span>
                             </div>
@@ -261,7 +314,7 @@
                     </div>
 
                     <div class="product-image-toolbar">
-                        <span>Kéo ảnh để đổi thứ tự. Ảnh đại diện sẽ hiển thị đầu tiên.</span>
+                        <span>Mỗi ảnh có thể dùng chung hoặc gắn cho nhiều phân loại màu–size. Có thể kéo để đổi thứ tự.</span>
                         <strong id="productImageCount">@Model.ExistingImages.Count/15 ảnh</strong>
                     </div>
 
@@ -281,16 +334,19 @@
                                     <span class="product-image-primary-badge">Ảnh đại diện</span>
                                 </div>
                                 <div class="product-image-card-footer">
-                                    <select class="form-select form-select-sm image-item-select" data-image-item>
-                                        <option value="0" selected="@(image.ItemId.HasValue ? null : "selected")">Ảnh chung</option>
-                                        @foreach (var item in productItems)
+                                    @{ var selectedVariantKeys = SelectedVariantKeys(image); }
+                                    <select class="form-select form-select-sm image-item-select"
+                                            data-image-variants multiple
+                                            data-placeholder="Ảnh chung (không chọn phân loại)">
+                                        @foreach (var variant in Model.Variants)
                                         {
-                                            <option value="@item.Id"
-                                                    selected="@(image.ItemId == item.Id ? "selected" : null)">
-                                                @ItemImageLabel(item)
+                                            <option value="@variant.ClientKey"
+                                                    selected="@(selectedVariantKeys.Contains(variant.ClientKey) ? "selected" : null)">
+                                                @VariantLabel(variant)
                                             </option>
                                         }
                                     </select>
+                                    <small class="text-muted">Có thể chọn nhiều phân loại; để trống là ảnh chung.</small>
                                     <button type="button" class="product-image-primary" data-set-primary>
                                         @(image.IsPrimary ? "Đang đại diện" : "Chọn đại diện")
                                     </button>
@@ -320,6 +376,7 @@
         <template id="variantRowTemplate">
             <div class="product-variant-row product-create-variant-row" data-variant-row>
                 <input type="hidden" value="0" data-field="Id" />
+                <input type="hidden" value="" data-field="ClientKey" />
                 <div class="product-variant-number" aria-label="Dòng phân loại">
                     <span class="variant-row-number"></span>
                 </div>
@@ -389,13 +446,15 @@
                     <span class="product-image-new-badge">Mới</span>
                 </div>
                 <div class="product-image-card-footer">
-                    <select class="form-select form-select-sm image-item-select" data-image-item>
-                        <option value="0" selected>Ảnh chung</option>
-                        @foreach (var item in productItems)
+                    <select class="form-select form-select-sm image-item-select"
+                            data-image-variants multiple
+                            data-placeholder="Ảnh chung (không chọn phân loại)">
+                        @foreach (var variant in Model.Variants)
                         {
-                            <option value="@item.Id">@ItemImageLabel(item)</option>
+                            <option value="@variant.ClientKey">@VariantLabel(variant)</option>
                         }
                     </select>
+                    <small class="text-muted">Có thể chọn nhiều phân loại; để trống là ảnh chung.</small>
                     <button type="button" class="product-image-primary" data-set-primary>Chọn đại diện</button>
                     <button type="button"
                             class="product-image-remove"
@@ -426,10 +485,10 @@
             const form = document.getElementById("productEditForm");
             if (!form) return;
 
-            const detailField = document.getElementById("Product_DetailContent");
-            if (!detailField || !window.tinymce) return;
+            const detailFields = document.querySelectorAll("textarea[data-product-rich-editor]");
+            if (!detailFields.length || !window.tinymce) return;
             window.tinymce.init({
-                target: detailField,
+                selector: "textarea[data-product-rich-editor]",
                 license_key: "gpl",
                 height: 430,
                 menubar: "file edit view insert format tools table",
@@ -451,6 +510,7 @@
                 const rowTemplate = document.getElementById("variantRowTemplate");
                 const addButton = document.getElementById("addVariantRow");
                 const emptyState = document.getElementById("variantEmptyState");
+                let newVariantSequence = 0;
 
                 if (!form || !rowsContainer || !rowTemplate || !addButton || !emptyState) return;
 
@@ -463,6 +523,17 @@
 
                         const idField = row.querySelector('[data-field="Id"]');
                         if (idField) idField.name = `Variants[${index}].Id`;
+
+                        const clientKeyField = row.querySelector('[data-field="ClientKey"]');
+                        if (clientKeyField) {
+                            if (!clientKeyField.value) {
+                                const suffix = window.crypto?.randomUUID?.().replaceAll("-", "") ||
+                                    `${Date.now()}${newVariantSequence++}`;
+                                clientKeyField.value = `new-${suffix}`;
+                            }
+                            clientKeyField.name = `Variants[${index}].ClientKey`;
+                            row.dataset.variantKey = clientKeyField.value;
+                        }
 
                         row.querySelectorAll('[data-field="AttributeValueIds"]').forEach((field) => {
                             field.name = `Variants[${index}].AttributeValueIds`;
@@ -482,6 +553,7 @@
                     rowsContainer.appendChild(row);
                     reindexRows();
                     window.WareHouseSelect2?.init(row);
+                    syncImageVariantOptions();
                     (row.querySelector(".select2-selection") || row.querySelector(".money-input"))?.focus();
                 };
 
@@ -501,6 +573,7 @@
                         window.WareHouseSelect2?.destroy(row);
                         row.remove();
                         reindexRows();
+                        syncImageVariantOptions();
                     }
                 });
 
@@ -543,6 +616,53 @@
                     switchEditorTab(tab.dataset.productEditorTab)));
 
                 const imageCards = () => [...imageGallery.querySelectorAll("[data-product-image]")];
+                const selectedVariantKeys = (select) => [...(select?.selectedOptions || [])]
+                    .map((option) => option.value)
+                    .filter(Boolean);
+
+                const currentVariantChoices = () => [...rowsContainer.querySelectorAll("[data-variant-row]")]
+                    .map((row) => {
+                        const key = row.querySelector('[data-field="ClientKey"]')?.value || row.dataset.variantKey;
+                        const labels = [...row.querySelectorAll('[data-field="AttributeValueIds"]')]
+                            .map((select) => {
+                                const value = select.value;
+                                if (!value || value === "0") return "";
+                                const groupName = select.closest(".product-variant-field")
+                                    ?.querySelector("label")?.textContent?.trim();
+                                const valueName = select.selectedOptions[0]?.textContent?.trim();
+                                return groupName && valueName ? `${groupName}: ${valueName}` : valueName;
+                            })
+                            .filter(Boolean);
+                        return key ? {
+                            key,
+                            label: labels.length > 0 ? labels.join(" · ") : "Phân loại mặc định"
+                        } : null;
+                    })
+                    .filter(Boolean);
+
+                const syncImageVariantOptions = () => {
+                    const choices = currentVariantChoices();
+                    imageCards().forEach((card) => {
+                        const select = card.querySelector("[data-image-variants]");
+                        if (!select) return;
+                        const selected = new Set(selectedVariantKeys(select));
+                        window.WareHouseSelect2?.destroy(select);
+                        select.replaceChildren(...choices.map((choice) => {
+                            const option = document.createElement("option");
+                            option.value = choice.key;
+                            option.textContent = choice.label;
+                            option.selected = selected.has(choice.key);
+                            return option;
+                        }));
+                        window.WareHouseSelect2?.init(select);
+                    });
+                };
+
+                const serializeImageAssignment = (card, imageKey = card.dataset.imageKey) => {
+                    const select = card.querySelector("[data-image-variants]");
+                    return `${imageKey}=${selectedVariantKeys(select).join("|")}`;
+                };
+
                 const syncGallery = () => {
                     const cards = imageCards();
                     let selectedKey = primaryImageKey.value;
@@ -558,8 +678,7 @@
                     });
 
                     imageOrder.value = cards.map((card) => card.dataset.imageKey).join(",");
-                    imageAssignments.value = cards.map((card) =>
-                        `${card.dataset.imageKey}=${Number(card.querySelector("[data-image-item]")?.value || 0)}`).join(",");
+                    imageAssignments.value = cards.map((card) => serializeImageAssignment(card)).join(",");
                     removedImageIds.value = [...removedIds].join(",");
                     imageEmptyState.hidden = cards.length > 0;
                     imageCount.textContent = `${cards.length}/${imageDropzone.dataset.maxFiles} ảnh`;
@@ -605,8 +724,8 @@
                         preview.title = file.name;
                         newFiles.set(key, file);
                         imageGallery.appendChild(card);
-                        window.WareHouseSelect2?.init(card);
                     });
+                    syncImageVariantOptions();
                     syncGallery();
                 };
 
@@ -635,10 +754,6 @@
                 imageGallery?.addEventListener("click", (event) => {
                     const card = event.target.closest("[data-product-image]");
                     if (!card) return;
-                    if (event.target.closest("[data-image-item]")) {
-                        syncGallery();
-                        return;
-                    }
                     if (event.target.closest("[data-set-primary]")) {
                         primaryImageKey.value = card.dataset.imageKey;
                         syncGallery();
@@ -653,6 +768,16 @@
                     window.WareHouseSelect2?.destroy(card);
                     if (card.dataset.objectUrl) URL.revokeObjectURL(card.dataset.objectUrl);
                     card.remove();
+                    syncGallery();
+                });
+
+                imageGallery?.addEventListener("change", (event) => {
+                    if (event.target.matches("[data-image-variants]")) syncGallery();
+                });
+
+                rowsContainer.addEventListener("change", (event) => {
+                    if (!event.target.matches('[data-field="AttributeValueIds"]')) return;
+                    syncImageVariantOptions();
                     syncGallery();
                 });
 
@@ -695,7 +820,7 @@
                             dataTransfer.items.add(newFiles.get(postedKey));
                             postedKey = `new-${postedIndex++}`;
                         }
-                        postedAssignments.push(`${postedKey}=${Number(card.querySelector("[data-image-item]")?.value || 0)}`);
+                        postedAssignments.push(serializeImageAssignment(card, postedKey));
                         if (card.dataset.imageKey === primaryImageKey.value) postedPrimaryKey = postedKey;
                         return postedKey;
                     });
@@ -710,6 +835,7 @@
                     prepareImagesForSubmit(event);
                 });
                 reindexRows();
+                syncImageVariantOptions();
                 syncGallery();
             })();
     </script>

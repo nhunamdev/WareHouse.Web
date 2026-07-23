@@ -428,6 +428,12 @@ namespace WareHouse.Data.Migrations
                     b.Property<string>("DetailContent")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("DetailContentDe")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DetailContentEn")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -436,7 +442,23 @@ namespace WareHouse.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("NameDe")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("SeoDescription")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("SeoDescriptionDe")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("SeoDescriptionEn")
                         .HasMaxLength(320)
                         .HasColumnType("nvarchar(320)");
 
@@ -444,11 +466,35 @@ namespace WareHouse.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("SeoKeywordsDe")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SeoKeywordsEn")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("SeoTitle")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("SeoTitleDe")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SeoTitleEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("ShortDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ShortDescriptionDe")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ShortDescriptionEn")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -469,6 +515,10 @@ namespace WareHouse.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("Name");
+
+                    b.HasIndex("NameDe");
+
+                    b.HasIndex("NameEn");
 
                     b.ToTable("Products");
                 });
@@ -520,6 +570,9 @@ namespace WareHouse.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ColorValueId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -567,13 +620,32 @@ namespace WareHouse.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ColorValueId");
+
                     b.HasIndex("ItemId");
+
+                    b.HasIndex("ProductId", "ColorValueId");
 
                     b.HasIndex("ProductId", "IsPrimary");
 
                     b.HasIndex("ProductId", "SortOrder");
 
                     b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("WareHouse.Data.ProductImageItem", b =>
+                {
+                    b.Property<int>("ProductImageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProductImageId", "ItemId");
+
+                    b.HasIndex("ItemId");
+
+                    b.ToTable("ProductImageItems");
                 });
 
             modelBuilder.Entity("WareHouse.Data.StockDocument", b =>
@@ -603,6 +675,10 @@ namespace WareHouse.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("DocumentDate")
                         .HasColumnType("datetime2");
 
@@ -621,12 +697,24 @@ namespace WareHouse.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("PreviousDebtAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PreviousDebtPaidAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Remark")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("SubtotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int?>("ToWarehouseId")
                         .HasColumnType("int");
@@ -737,6 +825,14 @@ namespace WareHouse.Data.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TitleDe")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TitleEn")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -955,6 +1051,11 @@ namespace WareHouse.Data.Migrations
 
             modelBuilder.Entity("WareHouse.Data.ProductImage", b =>
                 {
+                    b.HasOne("WareHouse.Data.AttributeValue", "ColorValue")
+                        .WithMany()
+                        .HasForeignKey("ColorValueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("WareHouse.Data.Item", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
@@ -966,9 +1067,30 @@ namespace WareHouse.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("ColorValue");
+
                     b.Navigation("Item");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("WareHouse.Data.ProductImageItem", b =>
+                {
+                    b.HasOne("WareHouse.Data.Item", "Item")
+                        .WithMany("ImageAssignments")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WareHouse.Data.ProductImage", "ProductImage")
+                        .WithMany("ItemAssignments")
+                        .HasForeignKey("ProductImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("ProductImage");
                 });
 
             modelBuilder.Entity("WareHouse.Data.StockDocument", b =>
@@ -1047,6 +1169,8 @@ namespace WareHouse.Data.Migrations
 
             modelBuilder.Entity("WareHouse.Data.Item", b =>
                 {
+                    b.Navigation("ImageAssignments");
+
                     b.Navigation("ItemAttributes");
 
                     b.Navigation("StockDocumentDetails");
@@ -1069,6 +1193,11 @@ namespace WareHouse.Data.Migrations
             modelBuilder.Entity("WareHouse.Data.ProductAttribute", b =>
                 {
                     b.Navigation("Values");
+                });
+
+            modelBuilder.Entity("WareHouse.Data.ProductImage", b =>
+                {
+                    b.Navigation("ItemAssignments");
                 });
 
             modelBuilder.Entity("WareHouse.Data.StockDocument", b =>

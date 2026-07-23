@@ -154,6 +154,8 @@ public class StockDocumentsController(WareHouseServices services) : Controller
         CustomerPhone = document.CustomerPhone ?? document.Customer?.Phone,
         FromWarehouseId = document.FromWarehouseId,
         ToWarehouseId = document.ToWarehouseId,
+        DiscountAmount = document.DiscountAmount,
+        PreviousDebtAmount = document.PreviousDebtAmount,
         PaidAmount = document.PaidAmount,
         Remark = document.Remark,
         Details = document.Details.Select(x => new DocumentLineViewModel

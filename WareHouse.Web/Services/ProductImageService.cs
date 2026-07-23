@@ -84,6 +84,7 @@ public sealed class ProductImageService
         if (!validation.Success) return validation;
 
         var existingImages = await _db.ProductImages
+            .Include(x => x.ItemAssignments)
             .Where(x => x.ProductId == productId)
             .OrderBy(x => x.SortOrder)
             .ThenBy(x => x.Id)
@@ -125,12 +126,35 @@ public sealed class ProductImageService
             foreach (var image in keptImages) keyedImages[$"existing-{image.Id}"] = image;
             for (var index = 0; index < addedImages.Count; index++) keyedImages[$"new-{index}"] = addedImages[index];
 
-            foreach (var pair in assignments)
+            foreach (var pair in keyedImages)
             {
-                if (!keyedImages.TryGetValue(pair.Key, out var image)) continue;
-                image.ItemId = pair.Value > 0 && validItemIds.Contains(pair.Value)
-                    ? pair.Value
-                    : null;
+                var image = pair.Value;
+                var requestedItemIds = assignments.GetValueOrDefault(pair.Key, [])
+                    .Where(validItemIds.Contains)
+                    .Distinct()
+                    .ToHashSet();
+
+                var removedAssignments = image.ItemAssignments
+                    .Where(x => !requestedItemIds.Contains(x.ItemId))
+                    .ToList();
+                if (removedAssignments.Count > 0)
+                    _db.ProductImageItems.RemoveRange(removedAssignments);
+
+                var existingItemIds = image.ItemAssignments
+                    .Where(x => !removedAssignments.Contains(x))
+                    .Select(x => x.ItemId)
+                    .ToHashSet();
+                foreach (var itemId in requestedItemIds.Except(existingItemIds))
+                {
+                    image.ItemAssignments.Add(new ProductImageItem
+                    {
+                        ProductImage = image,
+                        ItemId = itemId
+                    });
+                }
+
+                image.ColorValueId = null;
+                image.ItemId = null;
             }
 
             var orderedImages = new List<ProductImage>();
@@ -180,6 +204,7 @@ public sealed class ProductImageService
 
     public async Task<List<ProductImage>> GetImagesAsync(int productId) =>
         await _db.ProductImages.AsNoTracking()
+            .Include(x => x.ItemAssignments)
             .Where(x => x.ProductId == productId)
             .OrderByDescending(x => x.IsPrimary)
             .ThenBy(x => x.SortOrder)
@@ -240,18 +265,25 @@ public sealed class ProductImageService
                         x.StartsWith("new-", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-    private static IReadOnlyDictionary<string, int> ParseAssignments(string? value)
+    private static IReadOnlyDictionary<string, IReadOnlyCollection<int>> ParseAssignments(string? value)
     {
-        var assignments = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var assignments = new Dictionary<string, IReadOnlyCollection<int>>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in (value ?? string.Empty)
                      .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var separator = entry.IndexOf('=');
-            if (separator <= 0 || !int.TryParse(entry[(separator + 1)..], out var itemId)) continue;
+            if (separator <= 0) continue;
             var key = entry[..separator].Trim();
             if (key.StartsWith("existing-", StringComparison.OrdinalIgnoreCase) ||
                 key.StartsWith("new-", StringComparison.OrdinalIgnoreCase))
-                assignments[key] = itemId;
+            {
+                assignments[key] = entry[(separator + 1)..]
+                    .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(x => int.TryParse(x, out var itemId) ? itemId : 0)
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToList();
+            }
         }
         return assignments;
     }

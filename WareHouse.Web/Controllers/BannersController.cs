@@ -22,6 +22,8 @@ public sealed class BannersController(StoreBannerService banners) : Controller
         {
             Id = banner.Id,
             Title = banner.Title,
+            TitleEn = banner.TitleEn,
+            TitleDe = banner.TitleDe,
             Url = banner.Url,
             SortOrder = banner.SortOrder,
             IsActive = banner.IsActive,

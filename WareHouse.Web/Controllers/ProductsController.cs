@@ -41,7 +41,7 @@ public class ProductsController(
         if (!id.HasValue)
         {
             model.Product.IsActive = true;
-            model.Variants.Add(new ProductItemInput());
+            model.Variants.Add(new ProductItemInput { ClientKey = NewVariantKey() });
         }
         else
         {
@@ -59,6 +59,7 @@ public class ProductsController(
                 .Select(x => new ProductItemInput
                 {
                     Id = x.Id,
+                    ClientKey = $"item-{x.Id}",
                     CostPrice = x.CostPrice,
                     SalePrice = x.SalePrice,
                     AttributeValueIds = x.ItemAttributes
@@ -78,12 +79,25 @@ public class ProductsController(
     [RequestFormLimits(MultipartBodyLengthLimit = 30 * 1024 * 1024)]
     public async Task<IActionResult> Edit(ProductEditViewModel model)
     {
+        EnsureVariantClientKeys(model.Variants);
         // Mã sản phẩm không còn là dữ liệu người dùng phải nhập. Trường này được
         // để trống khi tạo mới để service tự sinh, vì vậy không áp dụng quy tắc
         // "required" ngầm của ASP.NET cho string non-nullable lên ô ẩn này.
         ModelState.Remove($"{nameof(ProductEditViewModel.Product)}.{nameof(Product.Code)}");
         if (model.Product.Code is null)
             model.Product.Code = string.Empty;
+
+        var allowedCategories = _catalogOptions.Categories
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(model.Product.Category) &&
+            !allowedCategories.Contains(model.Product.Category.Trim()))
+        {
+            ModelState.AddModelError(
+                $"{nameof(ProductEditViewModel.Product)}.{nameof(Product.Category)}",
+                "Nhóm hàng không còn được sử dụng. Vui lòng chọn Xe đạp hoặc Xe điện.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -110,13 +124,14 @@ public class ProductsController(
         }
 
         var productId = checked((int)(result.Id ?? model.Product.Id));
+        var resolvedImageAssignments = ResolveImageAssignments(model.ImageAssignments, model.Variants);
         var imageResult = await _productImages.ApplyAsync(
             productId,
             removedImageIds,
             model.NewImages,
             model.ImageOrder,
             model.PrimaryImageKey,
-            model.ImageAssignments);
+            resolvedImageAssignments);
         if (!imageResult.Success)
         {
             TempData["Error"] = $"{result.Message} Tuy nhiên, {imageResult.Message}";
@@ -140,10 +155,13 @@ public class ProductsController(
 
     private async Task FillOptionsAsync(ProductEditViewModel model)
     {
-        var savedCategories = await _services.GetProductCategoriesAsync();
         var savedUnits = await _services.GetProductUnitsAsync();
 
-        ViewBag.Categories = MergeOptions(_catalogOptions.Categories, savedCategories);
+        ViewBag.Categories = _catalogOptions.Categories
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         ViewBag.Units = MergeOptions(_catalogOptions.Units, savedUnits);
         model.AttributeGroups = await _services.GetActiveAttributesAsync();
         model.ImageBaseUrl = _imageOptions.RequestPath.TrimEnd('/');
@@ -158,6 +176,55 @@ public class ProductsController(
             .Where(x => x > 0)
             .Distinct()
             .ToList();
+
+    private static void EnsureVariantClientKeys(IReadOnlyList<ProductItemInput> variants)
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var variant in variants)
+        {
+            var key = variant.ClientKey?.Trim();
+            if (string.IsNullOrWhiteSpace(key) || key.IndexOfAny([',', '=', '|']) >= 0 || !used.Add(key))
+            {
+                key = variant.Id > 0 && used.Add($"item-{variant.Id}")
+                    ? $"item-{variant.Id}"
+                    : NewVariantKey();
+                used.Add(key);
+            }
+            variant.ClientKey = key;
+        }
+    }
+
+    private static string ResolveImageAssignments(
+        string? value,
+        IReadOnlyList<ProductItemInput> variants)
+    {
+        var itemIdByKey = variants
+            .Where(x => x.Id > 0 && !string.IsNullOrWhiteSpace(x.ClientKey))
+            .GroupBy(x => x.ClientKey.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+        var resolved = new List<string>();
+
+        foreach (var entry in (value ?? string.Empty)
+                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var separator = entry.IndexOf('=');
+            if (separator <= 0) continue;
+            var imageKey = entry[..separator].Trim();
+            if (!imageKey.StartsWith("existing-", StringComparison.OrdinalIgnoreCase) &&
+                !imageKey.StartsWith("new-", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var itemIds = entry[(separator + 1)..]
+                .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(itemIdByKey.ContainsKey)
+                .Select(key => itemIdByKey[key])
+                .Distinct();
+            resolved.Add($"{imageKey}={string.Join('|', itemIds)}");
+        }
+
+        return string.Join(',', resolved);
+    }
+
+    private static string NewVariantKey() => $"new-{Guid.NewGuid():N}";
 
     private static IReadOnlyList<string> MergeOptions(
         IEnumerable<string> configuredOptions,

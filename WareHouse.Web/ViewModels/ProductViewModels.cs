@@ -21,5 +21,5 @@ public sealed class ProductEditViewModel
     public IReadOnlyList<ProductImage> ExistingImages { get; set; } = [];
 
     [ValidateNever]
-    public string ImageBaseUrl { get; set; } = "/data/images";
+    public string ImageBaseUrl { get; set; } = "/data";
 }

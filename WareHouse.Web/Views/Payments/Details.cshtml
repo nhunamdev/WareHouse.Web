@@ -3,6 +3,9 @@
     ViewData["Title"] = "Chi tiết phiếu thu";
     var canManage = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.Manager);
     var isAutomatic = Model.Remark == "Thanh toán khi bán hàng";
+    var currentOrderPayment = isAutomatic && Model.Document is not null
+        ? Math.Max(0, Model.Amount - Model.Allocations.Sum(x => x.Amount))
+        : 0;
     var methodName = Model.PaymentMethod switch
     {
         PaymentMethod.Cash => "Tiền mặt",
@@ -101,7 +104,7 @@ else if (Model.Status == PaymentStatus.Cancelled)
             <small>Đơn bán thanh toán</small>
             @if (Model.Allocations.Count > 0)
             {
-                <strong>@Model.Allocations.Count đơn đã chọn</strong>
+                <strong>@(isAutomatic ? $"Đơn hiện tại và {Model.Allocations.Count} đơn nợ cũ" : $"{Model.Allocations.Count} đơn đã chọn")</strong>
             }
             else if (Model.Document is not null)
             {
@@ -115,6 +118,13 @@ else if (Model.Status == PaymentStatus.Cancelled)
     @if (Model.Allocations.Count > 0)
     {
         <div class="payment-detail-allocations">
+            @if (currentOrderPayment > 0 && Model.Document is not null)
+            {
+                <div>
+                    <a asp-controller="Sales" asp-action="Details" asp-route-id="@Model.DocumentId">Đơn hiện tại @Model.Document.DocumentDate.ToString("dd/MM/yyyy HH:mm")</a>
+                    <strong>@currentOrderPayment.ToString("N0") đ</strong>
+                </div>
+            }
             @foreach (var allocation in Model.Allocations.OrderByDescending(x => x.Document.DocumentDate).ThenByDescending(x => x.DocumentId))
             {
                 <div>

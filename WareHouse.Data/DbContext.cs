@@ -8,6 +8,7 @@ public class WareHouseDbContext(
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductImageItem> ProductImageItems => Set<ProductImageItem>();
     public DbSet<StoreBanner> StoreBanners => Set<StoreBanner>();
     public DbSet<ProductAttribute> Attributes => Set<ProductAttribute>();
     public DbSet<AttributeValue> AttributeValues => Set<AttributeValue>();
@@ -49,12 +50,15 @@ public class WareHouseDbContext(
         {
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.Name);
+            entity.HasIndex(x => x.NameEn);
+            entity.HasIndex(x => x.NameDe);
         });
 
         modelBuilder.Entity<ProductImage>(entity =>
         {
             entity.HasIndex(x => new { x.ProductId, x.SortOrder });
             entity.HasIndex(x => new { x.ProductId, x.IsPrimary });
+            entity.HasIndex(x => new { x.ProductId, x.ColorValueId });
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.Images)
                 .HasForeignKey(x => x.ProductId)
@@ -63,12 +67,32 @@ public class WareHouseDbContext(
                 .WithMany()
                 .HasForeignKey(x => x.ItemId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ColorValue)
+                .WithMany()
+                .HasForeignKey(x => x.ColorValueId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ProductImageItem>(entity =>
+        {
+            entity.HasKey(x => new { x.ProductImageId, x.ItemId });
+            entity.HasIndex(x => x.ItemId);
+            entity.HasOne(x => x.ProductImage)
+                .WithMany(x => x.ItemAssignments)
+                .HasForeignKey(x => x.ProductImageId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Item)
+                .WithMany(x => x.ImageAssignments)
+                .HasForeignKey(x => x.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<StoreBanner>(entity =>
         {
             entity.HasIndex(x => new { x.IsActive, x.SortOrder });
             entity.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.TitleEn).HasMaxLength(200);
+            entity.Property(x => x.TitleDe).HasMaxLength(200);
             entity.Property(x => x.ImagePath).IsRequired().HasMaxLength(300);
             entity.Property(x => x.Url).HasMaxLength(1000);
         });
@@ -145,6 +169,10 @@ public class WareHouseDbContext(
         {
             entity.HasIndex(x => x.DocumentNo).IsUnique();
             entity.HasIndex(x => new { x.DocumentType, x.Status, x.DocumentDate });
+            entity.Property(x => x.SubtotalAmount).HasPrecision(18, 2);
+            entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
+            entity.Property(x => x.PreviousDebtAmount).HasPrecision(18, 2);
+            entity.Property(x => x.PreviousDebtPaidAmount).HasPrecision(18, 2);
             entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
             entity.Property(x => x.PaidAmount).HasPrecision(18, 2);
             entity.Property(x => x.DebtAmount).HasPrecision(18, 2);

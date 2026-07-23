@@ -23,7 +23,7 @@ public sealed class ProductCategorySectionViewModel
 {
     public string Name { get; init; } = string.Empty;
     public string Slug { get; init; } = string.Empty;
-    public string Url => $"/{Slug}";
+    public string Url => StoreCulture.Path($"/{Slug}");
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
 }
 
@@ -31,10 +31,25 @@ public sealed class StoreCategoryViewModel
 {
     public string Name { get; init; } = string.Empty;
     public string Slug { get; init; } = string.Empty;
-    public string Url => $"/{Slug}";
+    public string Url => StoreCulture.Path($"/{Slug}");
     public string? Query { get; init; }
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
     public int TotalProducts { get; init; }
+}
+
+public sealed class StoreSearchViewModel
+{
+    public string? Query { get; init; }
+    public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
+    public int TotalProducts => Products.Count;
+}
+
+public sealed class ProductSearchSuggestionViewModel
+{
+    public string Name { get; init; } = string.Empty;
+    public string? Category { get; init; }
+    public string? ImageUrl { get; init; }
+    public string ProductUrl { get; init; } = string.Empty;
 }
 
 public sealed class ProductCardViewModel
@@ -56,7 +71,7 @@ public sealed class ProductCardViewModel
     public string PriceLabel => MinPrice == MaxPrice
         ? MinPrice.ToString("N0")
         : $"{MinPrice:N0} – {MaxPrice:N0}";
-    public string ProductUrl => SlugHelper.ProductUrl(Id, Name);
+    public string ProductUrl => StoreCulture.Path(SlugHelper.ProductUrl(Id, Name));
 }
 
 public sealed class ProductCardVariantViewModel
@@ -91,7 +106,7 @@ public sealed class ProductDetailViewModel
     public decimal MinPrice { get; init; }
     public decimal MaxPrice { get; init; }
     public string Slug => SlugHelper.ToSlug(Name);
-    public string ProductUrl => SlugHelper.ProductUrl(Id, Name);
+    public string ProductUrl => StoreCulture.Path(SlugHelper.ProductUrl(Id, Name));
     public string PriceLabel => MinPrice == MaxPrice
         ? $"{MinPrice:N0} đ"
         : $"{MinPrice:N0} – {MaxPrice:N0} đ";

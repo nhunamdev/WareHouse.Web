@@ -13,6 +13,12 @@ public class Product : AuditableEntity
     [StringLength(200)]
     public string Name { get; set; } = string.Empty;
 
+    [StringLength(200)]
+    public string? NameEn { get; set; }
+
+    [StringLength(200)]
+    public string? NameDe { get; set; }
+
     [StringLength(100)]
     public string? Category { get; set; }
 
@@ -26,17 +32,45 @@ public class Product : AuditableEntity
     [StringLength(500)]
     public string? ShortDescription { get; set; }
 
+    [StringLength(500)]
+    public string? ShortDescriptionEn { get; set; }
+
+    [StringLength(500)]
+    public string? ShortDescriptionDe { get; set; }
+
     /// <summary>Nội dung chi tiết hiển thị ở trang sản phẩm.</summary>
     public string? DetailContent { get; set; }
+
+    public string? DetailContentEn { get; set; }
+
+    public string? DetailContentDe { get; set; }
 
     [StringLength(200)]
     public string? SeoTitle { get; set; }
 
+    [StringLength(200)]
+    public string? SeoTitleEn { get; set; }
+
+    [StringLength(200)]
+    public string? SeoTitleDe { get; set; }
+
     [StringLength(320)]
     public string? SeoDescription { get; set; }
 
+    [StringLength(320)]
+    public string? SeoDescriptionEn { get; set; }
+
+    [StringLength(320)]
+    public string? SeoDescriptionDe { get; set; }
+
     [StringLength(500)]
     public string? SeoKeywords { get; set; }
+
+    [StringLength(500)]
+    public string? SeoKeywordsEn { get; set; }
+
+    [StringLength(500)]
+    public string? SeoKeywordsDe { get; set; }
 
     public bool IsActive { get; set; } = true;
     public ICollection<Item> Items { get; set; } = [];
@@ -48,6 +82,7 @@ public class ProductImage : AuditableEntity
     public int Id { get; set; }
     public int ProductId { get; set; }
     public int? ItemId { get; set; }
+    public int? ColorValueId { get; set; }
 
     [Required, StringLength(300)]
     public string RelativePath { get; set; } = string.Empty;
@@ -64,6 +99,20 @@ public class ProductImage : AuditableEntity
 
     public Product Product { get; set; } = null!;
     public Item? Item { get; set; }
+    public AttributeValue? ColorValue { get; set; }
+    public ICollection<ProductImageItem> ItemAssignments { get; set; } = [];
+}
+
+/// <summary>
+/// Liên kết nhiều-nhiều giữa một ảnh và các phân loại cụ thể của sản phẩm.
+/// Ví dụ cùng một ảnh có thể dùng cho Xanh/24 và Xanh/26.
+/// </summary>
+public class ProductImageItem
+{
+    public int ProductImageId { get; set; }
+    public int ItemId { get; set; }
+    public ProductImage ProductImage { get; set; } = null!;
+    public Item Item { get; set; } = null!;
 }
 
 /// <summary>
@@ -76,6 +125,12 @@ public class StoreBanner : AuditableEntity
     [Required(ErrorMessage = "Tiêu đề banner là bắt buộc.")]
     [StringLength(200)]
     public string Title { get; set; } = string.Empty;
+
+    [StringLength(200)]
+    public string? TitleEn { get; set; }
+
+    [StringLength(200)]
+    public string? TitleDe { get; set; }
 
     [Required, StringLength(300)]
     public string ImagePath { get; set; } = string.Empty;
@@ -137,6 +192,7 @@ public class Item : AuditableEntity
     public ICollection<ItemAttribute> ItemAttributes { get; set; } = [];
     public ICollection<WarehouseStock> WarehouseStocks { get; set; } = [];
     public ICollection<StockDocumentDetail> StockDocumentDetails { get; set; } = [];
+    public ICollection<ProductImageItem> ImageAssignments { get; set; } = [];
 }
 
 public class ItemAttribute : AuditableEntity
@@ -226,6 +282,10 @@ public class StockDocument : AuditableEntity
 
     public int? FromWarehouseId { get; set; }
     public int? ToWarehouseId { get; set; }
+    public decimal SubtotalAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal PreviousDebtAmount { get; set; }
+    public decimal PreviousDebtPaidAmount { get; set; }
     public decimal TotalAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public decimal DebtAmount { get; set; }
@@ -322,6 +382,7 @@ public class DocumentInput
     public string? CustomerPhone { get; set; }
     public int? FromWarehouseId { get; set; }
     public int? ToWarehouseId { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public string? Remark { get; set; }
     public List<DocumentDetailInput> Details { get; set; } = [];
@@ -344,6 +405,7 @@ public class ItemRow
 public class ProductItemInput
 {
     public int Id { get; set; }
+    public string ClientKey { get; set; } = string.Empty;
     public decimal CostPrice { get; set; }
     public decimal SalePrice { get; set; }
     public List<int> AttributeValueIds { get; set; } = [];

@@ -539,7 +539,6 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\createdu
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\hostfxr.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\hostpolicy.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\mscordaccore.dll
-D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\mscordaccore_amd64_amd64_10.0.926.27113.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\mscordbi.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\mscorrc.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\msquic.dll
@@ -549,8 +548,6 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\Microsof
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\952u0qz7nw-{0}-ntg7hq0exj-ntg7hq0exj.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\fb8pos44p7-{0}-o2erkrdy46-o2erkrdy46.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\SixLabors.ImageSharp.dll
-D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\6e1ukhh90j-{0}-bz1cf71swy-bz1cf71swy.gz
-D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\6t0lcynti7-{0}-a5xf2vpknk-a5xf2vpknk.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\i6t7cza0dw-{0}-8uz8i5xw7t-8uz8i5xw7t.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\tjhqfirl70-{0}-aboq30m9at-aboq30m9at.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\t5orb0xhyh-{0}-m1k8v6pthq-m1k8v6pthq.gz
@@ -778,3 +775,8 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compress
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\08xyk0lxfe-{0}-vftncs71h1-vftncs71h1.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\c7cdz3s2cz-{0}-yv8qsy9o93-yv8qsy9o93.gz
 D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\64fk6i1sij-{0}-n5ht9zvp4w-n5ht9zvp4w.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\mscordaccore_amd64_amd64_10.0.1026.32716.dll
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\WareHouse.Web.sourcelink.json
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\bin\Release\net10.0\win-x64\data\images\.gitkeep
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\6t0lcynti7-{0}-jbnxa43t8e-jbnxa43t8e.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Web\obj\Release\net10.0\win-x64\compressed\6e1ukhh90j-{0}-h29ox28w39-h29ox28w39.gz

@@ -29,6 +29,18 @@
                     <input asp-for="Title" class="form-control" placeholder="Ví dụ: Xe đạp chất lượng cho mọi hành trình" />
                     <span asp-validation-for="Title" class="text-danger"></span>
 
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label asp-for="TitleEn" class="form-label">Tiêu đề tiếng Anh</label>
+                            <input asp-for="TitleEn" class="form-control" placeholder="English banner title" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TitleDe" class="form-label">Tiêu đề tiếng Đức</label>
+                            <input asp-for="TitleDe" class="form-control" placeholder="Deutscher Bannertitel" />
+                        </div>
+                    </div>
+                    <div class="form-text">Để trống sẽ dùng tiêu đề tiếng Việt.</div>
+
                     <label asp-for="Image" class="form-label mt-3">Hình ảnh</label>
                     <input asp-for="Image" class="form-control" type="file" accept="image/jpeg,image/png,image/webp" />
                     <div class="form-text"><strong>Ảnh sẽ tự cắt giữa về 1600 × 900 px (tỷ lệ 16:9)</strong>. JPG/PNG/WebP, tối đa 5 MB. Nên đặt chủ thể ở giữa ảnh để giữ bố cục đẹp.</div>

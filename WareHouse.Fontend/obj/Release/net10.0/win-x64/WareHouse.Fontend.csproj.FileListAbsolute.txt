@@ -369,7 +369,6 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\crea
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\hostfxr.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\hostpolicy.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\mscordaccore.dll
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\mscordaccore_amd64_amd64_10.0.926.27113.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\mscordbi.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\mscorrc.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\msquic.dll
@@ -462,9 +461,7 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\Ware
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\ref\WareHouse.Fontend.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\appsettings.Production.json
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\themes\default\images\ic_logo_tueanh.png
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\data\images\.gitkeep
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\data\images\banners\21d2c80bd2ba48c88caab26662e29607.png
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\data\images\banners\d1678482f31542dda72cd1b548c10158.jpg
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\data\images\banners\edc0aa53c5e94e9083bb0ce116a0d8f7.jpg
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\compressed\cijoawvaeb-{0}-m11idamziy-m11idamziy.gz
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\compressed\2pw8vtnmsr-{0}-re7i4y2gxx-re7i4y2gxx.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\bin\Release\net10.0\win-x64\mscordaccore_amd64_amd64_10.0.1026.32716.dll
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\WareHouse.Fontend.sourcelink.json
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\compressed\cijoawvaeb-{0}-hwfa12c9j7-hwfa12c9j7.gz
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\obj\Release\net10.0\win-x64\compressed\2pw8vtnmsr-{0}-gkfu8fep3y-gkfu8fep3y.gz

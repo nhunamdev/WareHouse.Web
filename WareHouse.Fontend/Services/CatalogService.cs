@@ -8,6 +8,7 @@ namespace WareHouse.Fontend.Services;
 public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageOptions> imageOptions)
 {
     private readonly string _imageBase = imageOptions.Value.RequestPath.TrimEnd('/');
+    private static readonly string[] VisibleCategories = StoreCategories.All.Select(x => x.Name).ToArray();
 
     public async Task<StoreHomeViewModel> GetHomeAsync(string? query, CancellationToken cancellationToken = default)
     {
@@ -17,8 +18,14 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         {
             var term = query.Trim();
             productsQuery = productsQuery.Where(x => x.Name.Contains(term)
+                || (x.NameEn != null && x.NameEn.Contains(term))
+                || (x.NameDe != null && x.NameDe.Contains(term))
                 || (x.Category != null && x.Category.Contains(term))
                 || (x.ShortDescription != null && x.ShortDescription.Contains(term))
+                || (x.ShortDescriptionEn != null && x.ShortDescriptionEn.Contains(term))
+                || (x.ShortDescriptionDe != null && x.ShortDescriptionDe.Contains(term))
+                || (x.SeoKeywordsEn != null && x.SeoKeywordsEn.Contains(term))
+                || (x.SeoKeywordsDe != null && x.SeoKeywordsDe.Contains(term))
                 || (x.SeoKeywords != null && x.SeoKeywords.Contains(term)));
         }
 
@@ -45,7 +52,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         var sections = StoreCategories.All
             .Select(category => new ProductCategorySectionViewModel
             {
-                Name = category.Name,
+                Name = category.DisplayName,
                 Slug = category.Slug,
                 Products = orderedProducts
                     .Where(product => string.Equals(product.Category, category.Name, StringComparison.OrdinalIgnoreCase))
@@ -75,7 +82,13 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         {
             var term = query.Trim();
             productsQuery = productsQuery.Where(x => x.Name.Contains(term)
+                || (x.NameEn != null && x.NameEn.Contains(term))
+                || (x.NameDe != null && x.NameDe.Contains(term))
                 || (x.ShortDescription != null && x.ShortDescription.Contains(term))
+                || (x.ShortDescriptionEn != null && x.ShortDescriptionEn.Contains(term))
+                || (x.ShortDescriptionDe != null && x.ShortDescriptionDe.Contains(term))
+                || (x.SeoKeywordsEn != null && x.SeoKeywordsEn.Contains(term))
+                || (x.SeoKeywordsDe != null && x.SeoKeywordsDe.Contains(term))
                 || (x.SeoKeywords != null && x.SeoKeywords.Contains(term)));
         }
 
@@ -90,7 +103,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
 
         return new StoreCategoryViewModel
         {
-            Name = category.Name,
+            Name = category.DisplayName,
             Slug = category.Slug,
             Query = query,
             Products = cards,
@@ -98,8 +111,91 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         };
     }
 
+    public async Task<StoreSearchViewModel> SearchAsync(
+        string? query,
+        CancellationToken cancellationToken = default)
+    {
+        var term = query?.Trim();
+        if (term?.Length > 100) term = term[..100];
+        if (string.IsNullOrWhiteSpace(term))
+            return new StoreSearchViewModel();
+
+        var products = await ProductCardsQuery()
+            .Where(x => x.Name.Contains(term)
+                || (x.NameEn != null && x.NameEn.Contains(term))
+                || (x.NameDe != null && x.NameDe.Contains(term))
+                || (x.Category != null && x.Category.Contains(term))
+                || (x.ShortDescription != null && x.ShortDescription.Contains(term))
+                || (x.ShortDescriptionEn != null && x.ShortDescriptionEn.Contains(term))
+                || (x.ShortDescriptionDe != null && x.ShortDescriptionDe.Contains(term))
+                || (x.SeoKeywordsEn != null && x.SeoKeywordsEn.Contains(term))
+                || (x.SeoKeywordsDe != null && x.SeoKeywordsDe.Contains(term))
+                || (x.SeoKeywords != null && x.SeoKeywords.Contains(term)))
+            .ToListAsync(cancellationToken);
+        var soldQuantities = await GetSoldQuantitiesAsync(cancellationToken);
+        var cards = products
+            .OrderByDescending(x => x.Name.StartsWith(term))
+            .ThenByDescending(x => soldQuantities.GetValueOrDefault(x.Id))
+            .ThenByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.Name)
+            .Select(x => MapCard(x, soldQuantities.GetValueOrDefault(x.Id)))
+            .ToList();
+
+        return new StoreSearchViewModel
+        {
+            Query = term,
+            Products = cards
+        };
+    }
+
+    public async Task<IReadOnlyList<ProductSearchSuggestionViewModel>> GetSearchSuggestionsAsync(
+        string? query,
+        CancellationToken cancellationToken = default)
+    {
+        var term = query?.Trim();
+        if (term?.Length > 100) term = term[..100];
+        if (string.IsNullOrWhiteSpace(term) || term.Length < 2)
+            return [];
+
+        var suggestions = await db.Products.AsNoTracking()
+            .Where(x => x.IsActive && x.Category != null && VisibleCategories.Contains(x.Category) &&
+                (x.Name.Contains(term) ||
+                 (x.NameEn != null && x.NameEn.Contains(term)) ||
+                 (x.NameDe != null && x.NameDe.Contains(term))))
+            .OrderByDescending(x => x.Name.StartsWith(term))
+            .ThenByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.NameEn,
+                x.NameDe,
+                x.Category,
+                ImagePath = x.Images
+                    .OrderByDescending(image => image.IsPrimary)
+                    .ThenBy(image => image.SortOrder)
+                    .Select(image => image.RelativePath)
+                    .FirstOrDefault()
+            })
+            .Take(6)
+            .ToListAsync(cancellationToken);
+
+        return suggestions.Select(x =>
+        {
+            var name = Localized(x.Name, x.NameEn, x.NameDe);
+            return new ProductSearchSuggestionViewModel
+            {
+                Name = name,
+                Category = StoreCulture.CategoryName(x.Category),
+                ImageUrl = ImageUrl(x.ImagePath),
+                ProductUrl = StoreCulture.Path(SlugHelper.ProductUrl(x.Id, name))
+            };
+        }).ToList();
+    }
+
     private IQueryable<Product> ProductCardsQuery() => db.Products.AsNoTracking()
-        .Where(x => x.IsActive)
+        .Where(x => x.IsActive && x.Category != null && VisibleCategories.Contains(x.Category))
         .Include(x => x.Items.Where(item => item.IsActive))
         .ThenInclude(item => item.WarehouseStocks)
         .Include(x => x.Items.Where(item => item.IsActive))
@@ -107,6 +203,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         .ThenInclude(itemAttribute => itemAttribute.AttributeValue)
         .ThenInclude(value => value.Attribute)
         .Include(x => x.Images)
+        .ThenInclude(image => image.ItemAssignments)
         .AsSplitQuery();
 
     private Task<Dictionary<int, decimal>> GetSoldQuantitiesAsync(CancellationToken cancellationToken) =>
@@ -128,7 +225,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
 
         return banners.Select(x => new StoreBannerViewModel
         {
-            Title = x.Title,
+            Title = Localized(x.Title, x.TitleEn, x.TitleDe),
             ImageUrl = ImageUrl(x.ImagePath) ?? string.Empty,
             Url = x.Url
         }).ToList();
@@ -137,7 +234,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
     public async Task<ProductDetailViewModel?> GetDetailsAsync(int id, CancellationToken cancellationToken = default)
     {
         var product = await db.Products.AsNoTracking()
-            .Where(x => x.Id == id && x.IsActive)
+            .Where(x => x.Id == id && x.IsActive && x.Category != null && VisibleCategories.Contains(x.Category))
             .Include(x => x.Items.Where(item => item.IsActive))
             .ThenInclude(item => item.ItemAttributes)
             .ThenInclude(attribute => attribute.AttributeValue)
@@ -145,6 +242,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
             .Include(x => x.Items.Where(item => item.IsActive))
             .ThenInclude(item => item.WarehouseStocks)
             .Include(x => x.Images.OrderBy(image => image.SortOrder))
+            .ThenInclude(image => image.ItemAssignments)
             .AsSplitQuery()
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -162,23 +260,35 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
         var variants = product.Items
             .OrderBy(x => x.SalePrice)
             .ThenBy(x => x.Code)
-            .Select(item => new ItemOptionViewModel
+            .Select(item =>
             {
-                Id = item.Id,
-                Label = item.ItemAttributes.Count == 0
-                    ? item.Code
-                    : string.Join(" · ", item.ItemAttributes
-                        .OrderBy(attribute => attribute.AttributeValue.Attribute.Name)
-                        .Select(attribute => $"{attribute.AttributeValue.Attribute.Name}: {attribute.AttributeValue.Value}")),
-                SalePrice = item.SalePrice,
-                Stock = item.WarehouseStocks.Sum(stock => stock.Quantity),
-                ImageUrl = ImageUrl(product.Images
-                    .Where(image => image.ItemId == item.Id)
-                    .OrderByDescending(image => image.IsPrimary)
+                var colorValueId = item.ItemAttributes
+                    .Where(attribute => IsColorAttribute(attribute.AttributeValue.Attribute.Name))
+                    .Select(attribute => (int?)attribute.AttributeValueId)
+                    .FirstOrDefault();
+                var itemImage = product.Images
+                    .Where(image =>
+                        image.ItemAssignments.Any(assignment => assignment.ItemId == item.Id) ||
+                        (colorValueId.HasValue && image.ColorValueId == colorValueId) ||
+                        (!image.ColorValueId.HasValue && image.ItemId == item.Id))
+                    .OrderBy(image => image.ItemAssignments.Any(assignment => assignment.ItemId == item.Id) ? 0 : 1)
+                    .ThenByDescending(image => image.IsPrimary)
                     .ThenBy(image => image.SortOrder)
                     .Select(image => image.RelativePath)
-                    .FirstOrDefault()) ?? images.FirstOrDefault(),
-                AttributeValueIds = item.ItemAttributes.Select(x => x.AttributeValueId).OrderBy(x => x).ToList()
+                    .FirstOrDefault();
+                return new ItemOptionViewModel
+                {
+                    Id = item.Id,
+                    Label = item.ItemAttributes.Count == 0
+                        ? item.Code
+                        : string.Join(" · ", item.ItemAttributes
+                            .OrderBy(attribute => attribute.AttributeValue.Attribute.Name)
+                            .Select(attribute => $"{StoreCulture.AttributeName(attribute.AttributeValue.Attribute.Name)}: {StoreCulture.AttributeValue(attribute.AttributeValue.Value)}")),
+                    SalePrice = item.SalePrice,
+                    Stock = item.WarehouseStocks.Sum(stock => stock.Quantity),
+                    ImageUrl = ImageUrl(itemImage) ?? images.FirstOrDefault(),
+                    AttributeValueIds = item.ItemAttributes.Select(x => x.AttributeValueId).OrderBy(x => x).ToList()
+                };
             })
             .ToList();
 
@@ -190,7 +300,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
             .Select(group => new AttributeGroupViewModel
             {
                 Id = group.Key.Id,
-                Name = group.Key.Name,
+                Name = StoreCulture.AttributeName(group.Key.Name),
                 Choices = group
                     .Select(x => x.AttributeValue)
                     .GroupBy(x => x.Id)
@@ -200,7 +310,7 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
                     .Select(value => new AttributeChoiceViewModel
                     {
                         Id = value.Id,
-                        Name = value.Value,
+                        Name = StoreCulture.AttributeValue(value.Value),
                         ColorHex = IsColorAttribute(group.Key.Name) ? ColorHex(value.Value) : null
                     })
                     .ToList()
@@ -208,18 +318,20 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
             .ToList();
 
         var prices = variants.Select(x => x.SalePrice).DefaultIfEmpty(0).ToList();
+        var localizedName = Localized(product.Name, product.NameEn, product.NameDe);
+        var localizedShortDescription = LocalizedNullable(product.ShortDescription, product.ShortDescriptionEn, product.ShortDescriptionDe);
         return new ProductDetailViewModel
         {
             Id = product.Id,
-            Name = product.Name,
-            Category = product.Category,
-            Unit = product.Unit,
-            Description = product.Description,
-            ShortDescription = product.ShortDescription,
-            DetailContent = product.DetailContent,
-            SeoTitle = product.SeoTitle,
-            SeoDescription = product.SeoDescription,
-            SeoKeywords = product.SeoKeywords,
+            Name = localizedName,
+            Category = StoreCulture.CategoryName(product.Category),
+            Unit = StoreCulture.UnitName(product.Unit),
+            Description = localizedShortDescription ?? product.Description,
+            ShortDescription = localizedShortDescription,
+            DetailContent = LocalizedNullable(product.DetailContent, product.DetailContentEn, product.DetailContentDe),
+            SeoTitle = LocalizedNullable(product.SeoTitle, product.SeoTitleEn, product.SeoTitleDe) ?? localizedName,
+            SeoDescription = LocalizedNullable(product.SeoDescription, product.SeoDescriptionEn, product.SeoDescriptionDe) ?? localizedShortDescription,
+            SeoKeywords = LocalizedNullable(product.SeoKeywords, product.SeoKeywordsEn, product.SeoKeywordsDe),
             Images = images,
             Variants = variants,
             AttributeGroups = attributeGroups,
@@ -248,8 +360,12 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
                     .Select(attribute => attribute.AttributeValue)
                     .FirstOrDefault(value => IsSizeAttribute(value.Attribute.Name));
                 var itemImage = product.Images
-                    .Where(image => image.ItemId == item.Id)
-                    .OrderByDescending(image => image.IsPrimary)
+                    .Where(image =>
+                        image.ItemAssignments.Any(assignment => assignment.ItemId == item.Id) ||
+                        (color != null && image.ColorValueId == color.Id) ||
+                        (!image.ColorValueId.HasValue && image.ItemId == item.Id))
+                    .OrderBy(image => image.ItemAssignments.Any(assignment => assignment.ItemId == item.Id) ? 0 : 1)
+                    .ThenByDescending(image => image.IsPrimary)
                     .ThenBy(image => image.SortOrder)
                     .Select(image => image.RelativePath)
                     .FirstOrDefault();
@@ -257,10 +373,10 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
                 {
                     ItemId = item.Id,
                     ColorValueId = color?.Id,
-                    ColorName = color?.Value,
+                    ColorName = color is null ? null : StoreCulture.AttributeValue(color.Value),
                     ColorHex = color is null ? null : ColorHex(color.Value),
                     SizeValueId = size?.Id,
-                    SizeName = size?.Value,
+                    SizeName = size is null ? null : StoreCulture.AttributeValue(size.Value),
                     ImageUrl = ImageUrl(itemImage ?? cover),
                     Price = item.SalePrice,
                     Stock = item.WarehouseStocks.Sum(stock => stock.Quantity)
@@ -270,14 +386,16 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
             .ThenBy(x => x.ColorName)
             .ThenBy(x => x.SizeName)
             .ToList();
+        var localizedName = Localized(product.Name, product.NameEn, product.NameDe);
+        var localizedShortDescription = LocalizedNullable(product.ShortDescription, product.ShortDescriptionEn, product.ShortDescriptionDe);
         return new ProductCardViewModel
         {
             Id = product.Id,
-            Name = product.Name,
-            Category = product.Category,
-            Unit = product.Unit,
-            Description = product.Description,
-            ShortDescription = product.ShortDescription,
+            Name = localizedName,
+            Category = StoreCulture.CategoryName(product.Category),
+            Unit = StoreCulture.UnitName(product.Unit),
+            Description = localizedShortDescription ?? product.Description,
+            ShortDescription = localizedShortDescription,
             MinPrice = prices.Min(),
             MaxPrice = prices.Max(),
             TotalStock = variants.SelectMany(x => x.WarehouseStocks).Sum(x => x.Quantity),
@@ -320,4 +438,18 @@ public sealed class CatalogService(WareHouseDbContext db, IOptions<ProductImageO
     private string? ImageUrl(string? relativePath) => string.IsNullOrWhiteSpace(relativePath)
         ? null
         : $"{_imageBase}/{string.Join('/', relativePath.Split('/', '\\').Select(Uri.EscapeDataString))}";
+
+    private static string Localized(string vietnamese, string? english, string? german) =>
+        LocalizedNullable(vietnamese, english, german) ?? vietnamese;
+
+    private static string? LocalizedNullable(string? vietnamese, string? english, string? german)
+    {
+        var selected = StoreCulture.CurrentCode switch
+        {
+            "en" => english,
+            "de" => german,
+            _ => vietnamese
+        };
+        return string.IsNullOrWhiteSpace(selected) ? vietnamese : selected;
+    }
 }

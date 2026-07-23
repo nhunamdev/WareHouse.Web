@@ -25,7 +25,7 @@ public class AccountController(
         if (User.Identity?.IsAuthenticated == true)
             return RedirectAfterLogin(returnUrl, User.IsInRole(AppRoles.Sale));
         ViewBag.ReturnUrl = returnUrl;
-        return View(new LoginViewModel());
+        return View(new LoginViewModel { RememberMe = true });
     }
 
     [AllowAnonymous]
@@ -49,7 +49,7 @@ public class AccountController(
         }
 
         var result = await _signInManager.PasswordSignInAsync(
-            user, model.Password, model.RememberMe, lockoutOnFailure: true);
+            user, model.Password, isPersistent: true, lockoutOnFailure: true);
         if (result.Succeeded)
         {
             await TryWriteAuditAsync(

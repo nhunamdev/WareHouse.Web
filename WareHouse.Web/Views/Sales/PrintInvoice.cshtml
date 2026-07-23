@@ -1,18 +1,23 @@
 @model StockDocument
 @{
     Layout = null;
+    var subtotalAmount = Model.SubtotalAmount > 0 || Model.TotalAmount == 0
+        ? Model.SubtotalAmount
+        : Model.Details.Sum(x => x.Amount);
+    var totalPayable = Model.TotalAmount + Model.PreviousDebtAmount;
+    var totalReceived = Model.PaidAmount + Model.PreviousDebtPaidAmount;
 }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Hóa đơn @Model.DocumentNo</title>
+    <title>Phiếu xuất kho @Model.DocumentNo</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <style>
         body { font-family: Arial, sans-serif; }
         .sheet { max-width: 850px; margin: 20px auto; padding: 30px; }
-        .invoice-logo { width: 88px; height: 88px; object-fit: contain; }
+        .invoice-note { margin-top: 22px; padding: 12px 14px; border: 1px solid #d8dee3; border-radius: 8px; background: #f8f9fa; }
         @@media print {
             .d-print-none { display: none; }
             .sheet { margin: 0; max-width: none; padding: 0; }
@@ -23,12 +28,11 @@
 <body>
 <div class="sheet">
     <div class="d-flex justify-content-between d-print-none mb-3">
-        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light">Chi tiết hóa đơn</a>
-        <button class="btn btn-primary" onclick="window.print()">In hóa đơn</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light">Chi tiết đơn hàng</a>
+        <button class="btn btn-primary" onclick="window.print()">In phiếu xuất kho</button>
     </div>
     <div class="text-center mb-4">
-        <h1 class="h3">HÓA ĐƠN BÁN HÀNG</h1>
-        <img class="invoice-logo" src="~/themes/default/images/ic_logo_tueanh.png" alt="Xe đạp Tuệ Anh" />
+        <h1 class="h3">PHIẾU XUẤT KHO</h1>
         <div class="fw-bold">XE ĐẠP TUỆ ANH</div>
     </div>
     <div class="row mb-3">
@@ -74,11 +78,14 @@
     <div class="row justify-content-end">
         <div class="col-sm-6">
             <table class="table table-sm">
-                <tr><th>Tổng tiền</th><td class="text-end fw-bold">@Model.TotalAmount.ToString("N0")</td></tr>
+                <tr><th>Tổng tiền đơn hàng</th><td class="text-end">@subtotalAmount.ToString("N0")</td></tr>
+                <tr><th>Chiết khấu</th><td class="text-end">@Model.DiscountAmount.ToString("N0")</td></tr>
+                <tr><th>Nợ cũ</th><td class="text-end">@Model.PreviousDebtAmount.ToString("N0")</td></tr>
+                <tr><th>Tổng phải thanh toán</th><td class="text-end fw-bold">@totalPayable.ToString("N0")</td></tr>
                 @if (Model.Status == DocumentStatus.Completed)
                 {
-                    <tr><th>Đã trả</th><td class="text-end">@Model.PaidAmount.ToString("N0")</td></tr>
-                    <tr><th>Còn nợ</th><td class="text-end">@Model.DebtAmount.ToString("N0")</td></tr>
+                    <tr><th>Khách đã thanh toán</th><td class="text-end">@totalReceived.ToString("N0")</td></tr>
+                    <tr><th>Công nợ hiện tại của khách</th><td class="text-end">@Math.Max(0, Model.Customer?.Debt ?? 0).ToString("N0")</td></tr>
                 }
                 else
                 {
@@ -88,6 +95,9 @@
         </div>
     </div>
     <p><strong>Ghi chú:</strong> @Model.Remark</p>
+    <div class="invoice-note">
+        <strong>Lưu ý:</strong> Xử lý lỗi, khiếu nại trong vòng 24 giờ. Rất mong sự hợp tác của quý khách.
+    </div>
     <div class="row text-center mt-5">
         <div class="col-6">
             <strong>Người mua hàng</strong>

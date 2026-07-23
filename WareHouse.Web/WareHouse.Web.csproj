@@ -10,6 +10,9 @@
     <ProjectReference Include="..\WareHouse.Data\WareHouse.Data.csproj"
                       Condition="'$(Configuration)' != 'Debug'" />
     <Content Include="logs\README.txt" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="data\images\.gitkeep"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">

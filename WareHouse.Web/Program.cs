@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.FileProviders;
@@ -15,6 +16,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Chưa cấu hình connection string 'DefaultConnection'.");
 
 builder.Services.AddHttpContextAccessor();
+var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "data", "keys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .SetApplicationName("WareHouse.Web")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 builder.Services.AddScoped<IAuditUserProvider, HttpAuditUserProvider>();
 builder.Services.AddDbContext<WareHouseDbContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
@@ -41,11 +47,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/AccessDenied";
     options.Cookie.Name = "WareHouse.Auth";
     options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.Cookie.MaxAge = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
 });
 builder.Services.Configure<SecurityStampValidatorOptions>(options =>
-    options.ValidationInterval = TimeSpan.Zero);
+    options.ValidationInterval = TimeSpan.FromMinutes(30));
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
@@ -89,13 +99,50 @@ Directory.CreateDirectory(productImageRoot);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(productImageRoot),
-    RequestPath = productImageOptions.RequestPath
+    RequestPath = productImageOptions.RequestPath,
+    OnPrepareResponse = context =>
+        context.Context.Response.Headers.CacheControl = "public,max-age=2592000,immutable"
 });
 app.UseRequestLocalization();
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+var publicMediaRequestPath = "/" + productImageOptions.RequestPath.Trim('/');
+app.MapGet($"{publicMediaRequestPath}/{{**path}}", (string? path) =>
+{
+    var normalizedPath = (path ?? string.Empty).Replace('\\', '/').Trim('/');
+    var pathSegments = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+    var extension = Path.GetExtension(normalizedPath);
+    var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp"
+    };
+
+    if (pathSegments.Length == 0 ||
+        pathSegments.Any(segment => segment is "." or "..") ||
+        !allowedExtensions.Contains(extension))
+    {
+        return Results.NotFound();
+    }
+
+    var relativePath = Path.Combine(pathSegments);
+    var fullPath = Path.GetFullPath(Path.Combine(productImageRoot, relativePath));
+    var rootWithSeparator = productImageRoot.TrimEnd(
+                                Path.DirectorySeparatorChar,
+                                Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+    if (!fullPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+        return Results.NotFound();
+
+    var contentType = extension.ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".webp" => "image/webp",
+        _ => "image/jpeg"
+    };
+    return Results.File(fullPath, contentType, enableRangeProcessing: true);
+}).AllowAnonymous();
 
 app.MapStaticAssets();
 

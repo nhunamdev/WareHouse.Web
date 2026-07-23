@@ -1,7 +1,7 @@
 @model PagedResult<Product>
 @{
     ViewData["Title"] = "Sản phẩm";
-    var imageBaseUrl = ((string?)ViewBag.ImageBaseUrl ?? "/data/images").TrimEnd('/');
+    var imageBaseUrl = ((string?)ViewBag.ImageBaseUrl ?? "/data").TrimEnd('/');
 }
 
 <form method="get" class="filter-bar row g-2">

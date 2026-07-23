@@ -3,10 +3,6 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\appsettings.Development.
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\appsettings.json
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\appsettings.Production.json
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\themes\default\images\ic_logo_tueanh.png
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\data\images\.gitkeep
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\data\images\banners\21d2c80bd2ba48c88caab26662e29607.png
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\data\images\banners\d1678482f31542dda72cd1b548c10158.jpg
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\data\images\banners\edc0aa53c5e94e9083bb0ce116a0d8f7.jpg
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\WareHouse.Fontend.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\WareHouse.Fontend.deps.json
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\WareHouse.Fontend.runtimeconfig.json
@@ -336,7 +332,7 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\createdump.exe
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\hostfxr.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\hostpolicy.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\mscordaccore.dll
-D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\mscordaccore_amd64_amd64_10.0.926.27113.dll
+D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\mscordaccore_amd64_amd64_10.0.1026.32716.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\mscordbi.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\mscorrc.dll
 D:\Name_Manager\WareHouse.Web\WareHouse.Fontend\publish\msquic.dll

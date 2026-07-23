@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WareHouse.Fontend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cf7c9f62353eb81fed498dcf10dfc6cadd088fc4")]
 [assembly: System.Reflection.AssemblyProductAttribute("WareHouse.Fontend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WareHouse.Fontend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

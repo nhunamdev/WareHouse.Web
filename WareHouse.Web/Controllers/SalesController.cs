@@ -133,6 +133,9 @@ public class SalesController(WareHouseServices services) : Controller
         model.Warehouses = await _services.GetWarehousesAsync(true);
         model.FromWarehouseId = WareHouseServices.ResolveSingleWarehouseId(model.Warehouses, model.FromWarehouseId);
         model.Customers = await _services.GetActiveCustomersAsync();
+        model.PreviousDebtAmount = model.CustomerId.HasValue
+            ? await _services.GetCustomerOutstandingDebtAsync(model.CustomerId.Value)
+            : 0;
         model.Items = !model.FromWarehouseId.HasValue
             ? []
             : await _services.GetItemsForSelectionAsync(

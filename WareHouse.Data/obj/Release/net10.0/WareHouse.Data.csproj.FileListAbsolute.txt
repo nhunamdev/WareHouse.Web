@@ -12,3 +12,8 @@ D:\Name_Manager\WareHouse.Web\WareHouse.Data\obj\Release\net10.0\refint\WareHous
 D:\Name_Manager\WareHouse.Web\WareHouse.Data\obj\Release\net10.0\WareHouse.Data.pdb
 D:\Name_Manager\WareHouse.Web\WareHouse.Data\obj\Release\net10.0\WareHouse.Data.genruntimeconfig.cache
 D:\Name_Manager\WareHouse.Web\WareHouse.Data\obj\Release\net10.0\ref\WareHouse.Data.dll
+D:\Name_Manager\WareHouse.Web\.verify\bin\Release\net10.0\WareHouse.Data.deps.json
+D:\Name_Manager\WareHouse.Web\.verify\bin\Release\net10.0\WareHouse.Data.runtimeconfig.json
+D:\Name_Manager\WareHouse.Web\.verify\bin\Release\net10.0\WareHouse.Data.dll
+D:\Name_Manager\WareHouse.Web\.verify\bin\Release\net10.0\WareHouse.Data.pdb
+D:\Name_Manager\WareHouse.Web\WareHouse.Data\obj\Release\net10.0\WareHouse.Data.sourcelink.json
